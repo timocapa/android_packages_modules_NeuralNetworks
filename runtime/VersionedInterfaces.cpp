@@ -201,8 +201,8 @@ VersionedIPreparedModel::~VersionedIPreparedModel() {
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> VersionedIPreparedModel::executeAsynchronously(
-        const Request& request, MeasureTiming measure, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration) const {
+        const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration) const {
     const auto failDeadObject = []() -> std::tuple<int, std::vector<OutputShape>, Timing> {
         return {ANEURALNETWORKS_DEAD_OBJECT, {}, {}};
     };
@@ -301,8 +301,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> VersionedIPreparedModel::execu
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> VersionedIPreparedModel::executeSynchronously(
-        const Request& request, MeasureTiming measure, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration) const {
+        const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration) const {
     const std::tuple<int, std::vector<OutputShape>, Timing> kDeadObject = {
             ANEURALNETWORKS_DEAD_OBJECT, {}, {}};
     const auto kFailure = getExecutionResult(ErrorStatus::GENERAL_FAILURE, {}, {});
@@ -364,8 +364,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> VersionedIPreparedModel::execu
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> VersionedIPreparedModel::execute(
-        const Request& request, MeasureTiming measure, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration, bool preferSynchronous) const {
+        const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration, bool preferSynchronous) const {
     if (preferSynchronous) {
         VLOG(EXECUTION) << "Before executeSynchronously() " << SHOW_IF_DEBUG(request);
         return executeSynchronously(request, measure, deadline, loopTimeoutDuration);
@@ -421,19 +421,18 @@ static std::pair<V1_3::ErrorStatus, V1_3::Capabilities> getCapabilitiesFunction(
 
 static GeneralResult<std::pair<Timing, Timing>> convertFencedExecutionCallbackResults(
         const V1_2::Timing& timingLaunched, const V1_2::Timing& timingFenced) {
-    return std::make_pair(NN_TRY(V1_3::utils::validatedConvertToCanonical(timingLaunched)),
-                          NN_TRY(V1_3::utils::validatedConvertToCanonical(timingFenced)));
+    return std::make_pair(NN_TRY(nn::convert(timingLaunched)), NN_TRY(nn::convert(timingFenced)));
 }
 
 std::tuple<int, SyncFence, ExecuteFencedInfoCallback, Timing>
 VersionedIPreparedModel::executeFenced(const Request& request,
                                        const std::vector<SyncFence>& waitFor, MeasureTiming measure,
-                                       const std::optional<Deadline>& deadline,
-                                       const OptionalTimeoutDuration& loopTimeoutDuration,
-                                       const OptionalTimeoutDuration& timeoutDurationAfterFence) {
+                                       const OptionalTimePoint& deadline,
+                                       const OptionalDuration& loopTimeoutDuration,
+                                       const OptionalDuration& timeoutDurationAfterFence) {
     // version 1.3 HAL
     hardware::hidl_handle hidlSyncFence;
-    Timing timing = {UINT64_MAX, UINT64_MAX};
+    Timing timing;
     if (mPreparedModelV1_3 != nullptr) {
         ErrorStatus errorStatus;
         sp<V1_3::IFencedExecutionCallback> hidlCallback;
@@ -488,8 +487,7 @@ VersionedIPreparedModel::executeFenced(const Request& request,
                                 const V1_2::Timing& timingFenced) {
                 if (status != V1_3::ErrorStatus::NONE) {
                     const auto canonical =
-                            V1_3::utils::validatedConvertToCanonical(status).value_or(
-                                    ErrorStatus::GENERAL_FAILURE);
+                            nn::convert(status).value_or(ErrorStatus::GENERAL_FAILURE);
                     result = NN_ERROR(canonical)
                              << "getExecutionInfo failed with " << toString(status);
                 } else {
@@ -1049,6 +1047,12 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
                 return std::make_pair(status, std::move(remappedSupported));
             };
 
+    // Verify that the model is compliant with 1.3 / Android R drivers.
+    const auto minimumSupportedVersion = validate(model).value();
+    if (minimumSupportedVersion > Version::ANDROID_R) {
+        return noneSupported();
+    }
+
     // version 1.3 HAL
     const V1_3::Model model13 = convertToV1_3(model);
     if (getDevice<V1_3::IDevice>() != nullptr) {
@@ -1271,7 +1275,7 @@ static std::pair<int, std::shared_ptr<VersionedIPreparedModel>> prepareModelResu
 
 std::pair<int, std::shared_ptr<VersionedIPreparedModel>> VersionedIDevice::prepareModelInternal(
         const Model& model, ExecutionPreference preference, Priority priority,
-        const std::optional<Deadline>& deadline, const std::string& cacheDir,
+        const OptionalTimePoint& deadline, const std::string& cacheDir,
         const std::optional<CacheToken>& maybeToken) const {
     // Note that some work within VersionedIDevice will be subtracted from the IPC layer
     NNTRACE_FULL(NNTRACE_LAYER_IPC, NNTRACE_PHASE_COMPILATION, "prepareModel");
@@ -1462,7 +1466,7 @@ std::pair<int, std::shared_ptr<VersionedIPreparedModel>> VersionedIDevice::prepa
 }
 
 std::pair<int, std::shared_ptr<VersionedIPreparedModel>>
-VersionedIDevice::prepareModelFromCacheInternal(const std::optional<Deadline>& deadline,
+VersionedIDevice::prepareModelFromCacheInternal(const OptionalTimePoint& deadline,
                                                 const std::string& cacheDir,
                                                 const CacheToken& token) const {
     // Note that some work within VersionedIDevice will be subtracted from the IPC layer
@@ -1548,7 +1552,7 @@ VersionedIDevice::prepareModelFromCacheInternal(const std::optional<Deadline>& d
 
 std::pair<int, std::shared_ptr<VersionedIPreparedModel>> VersionedIDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-        const std::optional<Deadline>& deadline, const std::string& cacheDir,
+        const OptionalTimePoint& deadline, const std::string& cacheDir,
         const std::optional<CacheToken>& maybeToken) const {
     // Attempt to compile from cache if token is present.
     if (maybeToken.has_value()) {
