@@ -731,11 +731,6 @@ int ExecutionStep::finishStepModel(const ModelBuilder* mainModel, bool* hasOutpu
                    [](auto& e) { return e.second; });
     NN_RETURN_IF_ERROR(mStepModel.identifyInputsAndOutputs(inputs.size(), inputs.data(),
                                                            outputs.size(), outputs.data()));
-    // TODO: Model::finish() should use ValidationMode::RUNTIME when sending the
-    // step model to CpuDevice. Right now, this is harmless because the only
-    // difference in validation occurs with control flow operations and inputs
-    // or outputs of unknown size and we never send control flow operations to
-    // CpuDevice. We need to address this if this behavior changes (b/151634976).
     NN_RETURN_IF_ERROR(mStepModel.finish());
 
     // TODO: Move compilation elsewhere?
@@ -2300,8 +2295,10 @@ int ModelBuilder::findBestDeviceForEachOperation(
                 const auto& device = devices[deviceIndex];
                 if (canDo[deviceIndex].check(operationIndex)) {
                     const float perfVal = getPerformance(preference, device, operationIndex);
+                    const bool deviceIsPreferred =
+                            (device == DeviceManager::getCpuDevice() || device->isUpdatable());
                     if (bestChoice < 0 || perfVal < bestPerfVal ||
-                        (perfVal == bestPerfVal && device == DeviceManager::getCpuDevice())) {
+                        (perfVal == bestPerfVal && deviceIsPreferred)) {
                         bestChoice = deviceIndex;
                         bestPerfVal = perfVal;
                     }

@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "AppInfoFetcher.h"
 #include "Callbacks.h"
 #include "CpuExecutor.h"
 #include "ExecutionBurstController.h"
@@ -64,6 +65,8 @@ class DriverDevice : public Device {
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
     int64_t getFeatureLevel() const override { return kInterface->getFeatureLevel(); }
     int32_t getType() const override { return kInterface->getType(); }
+    // TODO: call kInterface->isUpdatable() when VersionedIDevice is changed to nn::IDevice.
+    bool isUpdatable() const override { return false; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kInterface->getSupportedExtensions();
     }
@@ -317,9 +320,6 @@ allocatePointerArgumentsToPool(const std::vector<ModelArgumentInfo>& args,
 // outputs specified by pointers. The input pointer data will be copied to the input pool prior to
 // execution, and the output pointer data will be copied out from the output pool after the
 // execution.
-//
-// The HIDL invocation will choose between sync/async execution according to
-// DeviceManager::mSyncExecHal.
 std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories,
@@ -403,9 +403,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     // (1) burst was not supplied, or
     // (2) the burst execution failed and requested a fallback execution
     if (!burstCompute || burstFallback) {
-        const bool preferSynchronous = DeviceManager::get()->syncExecHal();
         std::tie(n, outputShapes, timing) = mPreparedModel->execute(
-                request, measure, deadline, loopTimeoutDuration, preferSynchronous);
+                request, measure, deadline, loopTimeoutDuration, /*preferSynchronous=*/true);
     }
 
     if (n != ANEURALNETWORKS_NO_ERROR) {
@@ -548,6 +547,7 @@ class CpuDevice : public Device {
     const std::string& getVersionString() const override { return kVersionString; }
     int64_t getFeatureLevel() const override { return kFeatureLevel; }
     int32_t getType() const override { return ANEURALNETWORKS_DEVICE_CPU; }
+    bool isUpdatable() const override { return false; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kSupportedExtensions;
     }
@@ -837,9 +837,18 @@ void DeviceManager::findAvailableDevices() {
     mDevicesCpuOnly.push_back(CpuDevice::get());
 }
 
+static bool updatableDriversAreAllowed() {
+    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
+    const bool currentProcessIsOnThePlatform =
+            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
+    return !currentProcessIsOnThePlatform;
+}
+
 void DeviceManager::registerDevice(const std::string& name, const HalDeviceFactory& makeDevice) {
     if (auto device = DriverDevice::create(name, makeDevice)) {
-        mDevices.push_back(std::move(device));
+        if (!device->isUpdatable() || updatableDriversAreAllowed()) {
+            mDevices.push_back(std::move(device));
+        }
     }
 }
 
@@ -851,9 +860,6 @@ DeviceManager::DeviceManager() {
     mPartitioning = getProp("debug.nn.partition", kPartitioningDefault);
     mDebugNNCpuOnly = (getProp("debug.nn.cpuonly") != 0);
     mSyncExecCpu = (getProp("debug.nn.syncexec-cpu", 1) != 0);
-    if (!mSyncExecHalSetter) {
-        mSyncExecHal = (getProp("debug.nn.syncexec-hal", 1) != 0);
-    }
     mSyncExecRuntime = (getProp("debug.nn.syncexec-runtime") != 0);
 #endif  // NN_DEBUGGABLE
 }
