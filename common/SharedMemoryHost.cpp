@@ -38,7 +38,7 @@ GeneralResult<Mapping> mapAshmem(const Memory& memory) {
     CHECK_LE(memory.size, std::numeric_limits<uint32_t>::max());
     const auto size = memory.size;
 
-    const int fd = memory.handle->fds[0];
+    const int fd = std::get<Handle>(memory.handle).fds[0];
     std::shared_ptr<base::MappedFile> mapping =
             base::MappedFile::FromFd(fd, /*offset=*/0, size, PROT_READ | PROT_WRITE);
     if (mapping == nullptr) {
@@ -56,7 +56,7 @@ struct MmapFdMappingContext {
 
 GeneralResult<Mapping> mapMemFd(const Memory& memory) {
     const size_t size = memory.size;
-    const SharedHandle& handle = memory.handle;
+    const Handle& handle = std::get<Handle>(memory.handle);
     const int fd = handle->fds[0];
     const int prot = handle->ints[0];
     const size_t offset = getOffsetFromInts(handle->ints[1], handle->ints[2]);
@@ -71,9 +71,20 @@ GeneralResult<Mapping> mapMemFd(const Memory& memory) {
     return Mapping{.pointer = data, .size = size, .context = std::move(context)};
 }
 
+void freeNoop(AHardwareBuffer* /*buffer*/) {}
+
 }  // namespace
 
-GeneralResult<Memory> createSharedMemory(size_t size) {
+HardwareBufferHandle::HardwareBufferHandle(AHardwareBuffer* handle, bool /*takeOwnership*/)
+    : mHandle(handle, freeNoop) {
+    CHECK(mHandle != nullptr);
+}
+
+AHardwareBuffer* HardwareBufferHandle::get() const {
+    return mHandle.get();
+}
+
+GeneralResult<SharedMemory> createSharedMemory(size_t size) {
     int fd = ashmem_create_region("NnapiAshmem", size);
     if (fd < 0) {
         return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
@@ -83,14 +94,15 @@ GeneralResult<Memory> createSharedMemory(size_t size) {
     std::vector<base::unique_fd> fds;
     fds.emplace_back(fd);
 
-    SharedHandle handle = std::make_shared<const Handle>(Handle{
+    auto handle = Handle{
             .fds = std::move(fds),
             .ints = {},
     });
-    return Memory{.handle = std::move(handle), .size = size, .name = "ashmem"};
+    return std::make_shared<const Memory>(
+            Memory{.handle = std::move(handle), .size = size, .name = "ashmem"});
 }
 
-GeneralResult<Memory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset) {
+GeneralResult<SharedMemory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset) {
     if (size == 0 || fd < 0) {
         return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "Invalid size or fd";
     }
@@ -108,30 +120,27 @@ GeneralResult<Memory> createSharedMemoryFromFd(size_t size, int prot, int fd, si
     const auto [lowOffsetBits, highOffsetBits] = getIntsFromOffset(offset);
     std::vector<int> ints = {prot, lowOffsetBits, highOffsetBits};
 
-    SharedHandle handle = std::make_shared<const Handle>(Handle{
+    auto handle = Handle{
             .fds = std::move(fds),
             .ints = std::move(ints),
     });
-    return Memory{.handle = std::move(handle), .size = size, .name = "mmap_fd"};
+    return SharedMemory{.handle = std::move(handle), .size = size, .name = "mmap_fd"};
 }
 
-GeneralResult<Memory> createSharedMemoryFromHidlMemory(const hardware::hidl_memory& /*memory*/) {
-    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "hidl_memory not supported on host";
-}
-
-GeneralResult<Memory> createSharedMemoryFromAHWB(const AHardwareBuffer& /*ahwb*/) {
+GeneralResult<SharedMemory> createSharedMemoryFromAHWB(const AHardwareBuffer& /*ahwb*/) {
     return NN_ERROR(ErrorStatus::INVALID_ARGUMENT)
            << "AHardwareBuffer memory not supported on host";
 }
 
-GeneralResult<Mapping> map(const Memory& memory) {
-    if (memory.name == "ashmem") {
-        return mapAshmem(memory);
+GeneralResult<Mapping> map(const SharedMemory& memory) {
+    CHECK(memory != nullptr);
+    if (memory->name == "ashmem") {
+        return mapAshmem(*memory);
     }
-    if (memory.name == "mmap_fd") {
-        return mapMemFd(memory);
+    if (memory->name == "mmap_fd") {
+        return mapMemFd(*memory);
     }
-    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "Cannot map unknown memory " << memory.name;
+    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "Cannot map unknown memory " << memory->name;
 }
 
 bool flush(const Mapping& mapping) {
