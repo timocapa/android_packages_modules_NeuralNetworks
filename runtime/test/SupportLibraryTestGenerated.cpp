@@ -35,13 +35,13 @@
 
 #include "GeneratedTestUtils.h"
 #include "SupportLibraryTestUtils.h"
-#include "SupportLibraryTestWrapper.h"
+#include "SupportLibraryWrapper.h"
 
 // Systrace is not available from CTS tests due to platform layering
 // constraints. We reuse the NNTEST_ONLY_PUBLIC_API flag, as that should also be
 // the case for CTS (public APIs only).
 #ifndef NNTEST_ONLY_PUBLIC_API
-#include "Tracing.h"
+#include <Tracing.h>
 #else
 #define NNTRACE_FULL_RAW(...)
 #define NNTRACE_APP(...)
@@ -51,7 +51,7 @@
 extern std::string SUPPORT_LIBRARY_NAME;
 
 namespace android::nn::generated_tests {
-using namespace test_wrapper;
+using namespace sl_wrapper;
 using namespace test_helper;
 
 class GeneratedTests : public GeneratedTestBase {

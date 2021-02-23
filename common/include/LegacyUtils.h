@@ -21,16 +21,18 @@
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_LEGACY_UTILS_H
 
 #include <android-base/logging.h>
+#include <nnapi/TypeUtils.h>
+#include <nnapi/Types.h>
 
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include <nnapi/TypeUtils.h>
-#include <nnapi/Types.h>
 #include "NeuralNetworks.h"
 #include "OperationResolver.h"
+#include "nnapi/TypeUtils.h"
+#include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
@@ -108,6 +110,15 @@ inline OptionalTimePoint makeDeadline(OptionalDuration duration) {
 }
 inline OptionalTimePoint makeDeadline(std::optional<uint64_t> duration) {
     return duration.has_value() ? std::make_optional(makeDeadline(*duration)) : OptionalTimePoint{};
+}
+inline OptionalTimePoint makeDeadline(int64_t duration) {
+    // NN AIDL interface defines -1 to indicate that the duration has been omitted and forbids all
+    // other negative values.
+    CHECK_GE(duration, -1);
+    if (duration == -1) {
+        return OptionalTimePoint{};
+    }
+    return makeDeadline(static_cast<uint64_t>(duration));
 }
 
 // Returns true if the deadline has passed. Returns false if either the deadline
@@ -304,6 +315,19 @@ FenceState syncWait(int fd, int timeout);
 uint32_t getProp(const char* str, uint32_t defaultValue = 0);
 #endif  // NN_DEBUGGABLE
 
+struct ApiVersion {
+    Version canonical;
+    int64_t featureLevel;
+};
+
+constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = Version::ANDROID_OC_MR1,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_1};
+constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = Version::ANDROID_P,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_2};
+constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = Version::ANDROID_Q,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_3};
+constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = Version::ANDROID_R,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_4};
 }  // namespace nn
 }  // namespace android
 

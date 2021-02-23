@@ -18,6 +18,12 @@
 
 #include "ExecutionBuilder.h"
 
+#include <ControlFlow.h>
+#include <CpuExecutor.h>
+#include <ExecutionBurstController.h>
+#include <LegacyUtils.h>
+#include <Tracing.h>
+#include <android-base/logging.h>
 #include <nnapi/IPreparedModel.h>
 
 #include <algorithm>
@@ -33,16 +39,10 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "ControlFlow.h"
-#include "CpuExecutor.h"
-#include "ExecutionBurstController.h"
-#include "HalInterfaces.h"
 #include "Manager.h"
 #include "ModelArgumentInfo.h"
 #include "ModelBuilder.h"
-#include "Tracing.h"
 #include "TypeManager.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -248,7 +248,7 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory().size;
+        length = memory->getMemory()->size;
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
@@ -326,7 +326,7 @@ int ExecutionBuilder::setOutputFromMemory(uint32_t index, const ANeuralNetworksO
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory().size;
+        length = memory->getMemory()->size;
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
