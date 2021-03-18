@@ -78,22 +78,7 @@ typedef enum {
 %insert Operation_1.3
 } OperationCode;
 
-/**
- * Fused activation function types.
- *
- *
- * Available since NNAPI feature level 1.
- */
-typedef enum {
-    /** NO fused activation function. */
-    ANEURALNETWORKS_FUSED_NONE = 0,
-    /** Fused ReLU activation function. */
-    ANEURALNETWORKS_FUSED_RELU = 1,
-    /** Fused ReLU1 activation function. */
-    ANEURALNETWORKS_FUSED_RELU1 = 2,
-    /** Fused ReLU6 activation function. */
-    ANEURALNETWORKS_FUSED_RELU6 = 3,
-} FuseCode;
+%insert FusedActivationFunc
 
 /**
  * Implicit padding algorithms.
@@ -130,47 +115,9 @@ typedef enum {
     ANEURALNETWORKS_PADDING_VALID = 2,
 } PaddingCode;
 
-/**
- * Execution preferences.
- *
- * Available since NNAPI feature level 1.
- */
-typedef enum {
-    /**
-     * Prefer executing in a way that minimizes battery drain.
-     * This is desirable for compilations that will be executed often.
-     */
-    ANEURALNETWORKS_PREFER_LOW_POWER = 0,
-    /**
-     * Prefer returning a single answer as fast as possible, even if this causes
-     * more power consumption.
-     */
-    ANEURALNETWORKS_PREFER_FAST_SINGLE_ANSWER = 1,
-    /**
-     * Prefer maximizing the throughput of successive frames, for example when
-     * processing successive frames coming from the camera.
-     */
-    ANEURALNETWORKS_PREFER_SUSTAINED_SPEED = 2,
-} PreferenceCode;
+%insert ExecutionPreference
 
-/**
- * Device types.
- *
- * The type of NNAPI device.
- */
-typedef enum {
-    /** The device type cannot be provided. */
-    ANEURALNETWORKS_DEVICE_UNKNOWN = 0,
-    /** The device does not fall into any category below. */
-    ANEURALNETWORKS_DEVICE_OTHER = 1,
-    /** The device runs NNAPI models on single or multi-core CPU. */
-    ANEURALNETWORKS_DEVICE_CPU = 2,
-    /** The device can run NNAPI models and also accelerate graphics APIs such
-     * as OpenGL ES and Vulkan. */
-    ANEURALNETWORKS_DEVICE_GPU = 3,
-    /** Dedicated accelerator for Machine Learning workloads. */
-    ANEURALNETWORKS_DEVICE_ACCELERATOR = 4,
-} DeviceTypeCode;
+%insert DeviceType
 
 /**
  * NNAPI feature levels.
@@ -358,17 +305,7 @@ typedef enum {
     ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER = 3,
 } DurationCode;
 
-/**
- * Relative execution priority.
- *
- * Available since NNAPI feature level 4.
- */
-typedef enum {
-    ANEURALNETWORKS_PRIORITY_LOW = 90,
-    ANEURALNETWORKS_PRIORITY_MEDIUM = 100,
-    ANEURALNETWORKS_PRIORITY_HIGH = 110,
-    ANEURALNETWORKS_PRIORITY_DEFAULT = ANEURALNETWORKS_PRIORITY_MEDIUM,
-} PriorityCode;
+%insert Priority
 
 /**
  * ANeuralNetworksMemory is an opaque type that represents memory.
@@ -567,9 +504,7 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  */
 typedef struct ANeuralNetworksExecution ANeuralNetworksExecution;
 
-/**
- * Parameters for ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL operand.
- */
+%insert SymmPerChannelQuantParams_Comment
 typedef struct ANeuralNetworksSymmPerChannelQuantParams {
     /* The index of the channel dimension. */
     uint32_t channelDim;
@@ -2106,6 +2041,9 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  * less than the raw size of the input will result in ANEURALNETWORKS_BAD_DATA.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput} and
+ * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput} for information on getting
+ * preferred buffer alignment and padding, to improve performance.
  *
  * Available since NNAPI feature level 1.
  *
@@ -2171,6 +2109,9 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  * AHardwareBuffer usage.
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
  * created from memory descriptors.
+ * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput} and
+ * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput} for information on getting
+ * preferred memory alignment and padding, to improve performance.
  *
  * Available since NNAPI feature level 1.
  *
@@ -2226,6 +2167,9 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  * less than the raw size of the output will result in ANEURALNETWORKS_BAD_DATA.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput} and
+ * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput} for information on getting
+ * preferred buffer alignment and padding, to improve performance.
  *
  * Available since NNAPI feature level 1.
  *
@@ -2295,6 +2239,9 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  * AHardwareBuffer usage.
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
  * created from memory descriptors.
+ * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput} and
+ * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput} for information on getting
+ * preferred memory alignment and padding, to improve performance.
  *
  * Available since NNAPI feature level 1.
  *
@@ -2704,6 +2651,146 @@ int64_t ANeuralNetworks_getRuntimeFeatureLevel() __INTRODUCED_IN(31);
  */
 int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecution* execution,
                                                          bool enable) __INTRODUCED_IN(31);
+
+/**
+ * Get the preferred buffer and memory alignment of an input to an execution created from a
+ * particular compilation.
+ *
+ * The user may use the returned alignment value to guide the layout of the input buffer or memory
+ * pool. To achieve the best performance, make sure the address of the buffer passed in
+ * {@link ANeuralNetworksExecution_setInput}, or the offset value passed in
+ * {@link ANeuralNetworksExecution_setInputFromMemory}, is a multiple of the perferred alignment
+ * value of the same input. A driver may choose to allocate a separate buffer and do memory copying
+ * if the provided buffer or memory does not satisfy the preferred alignment.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ *
+ * @param compilation The compilation object. It must already have been finished by calling
+ *                    {@link ANeuralNetworksCompilation_finish}.
+ * @param index The index of the input argument we are referencing from the compilation. It is
+ *              an index into the inputs list passed to
+ *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
+ *              the index associated with {@link ANeuralNetworksModel_addOperand}.
+ * @param alignment The returned preferred alignment. It will be a power of 2.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if the compilation has not been finished.
+ *         ANEURALNETWORKS_BAD_DATA if the index is out of range.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment)
+        __INTRODUCED_IN(31);
+
+/**
+ * Get the preferred buffer and memory end padding of an input to an execution created from a
+ * particular compilation.
+ *
+ * The user may use the returned padding value to guide the layout of the input buffer or memory
+ * pool. To achieve the best performance, make sure the length value passed in
+ * {@link ANeuralNetworksExecution_setInput} or
+ * {@link ANeuralNetworksExecution_setInputFromMemory} is greater than or equal to the raw size of
+ * the input (i.e. the size of an element multiplied by the number of elements) rounding up to
+ * a multiple of the perferred padding value of the same input. A driver may choose to allocate a
+ * separate buffer and do memory copying if the provided buffer or memory value does not satisfy
+ * the preferred padding.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ * See {@link ANeuralNetworksExecution_enableInputAndOutputPadding},
+ * {@link ANeuralNetworksExecution_setInput}, and
+ * {@link ANeuralNetworksExecution_setInputFromMemory} for information on passing
+ * input buffer or memory padding to the driver.
+ *
+ * @param compilation The compilation object. It must already have been finished by calling
+ *                    {@link ANeuralNetworksCompilation_finish}.
+ * @param index The index of the input argument we are referencing from the compilation. It is
+ *              an index into the inputs list passed to
+ *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
+ *              the index associated with {@link ANeuralNetworksModel_addOperand}.
+ * @param padding The returned preferred padding. It will be a power of 2.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if the compilation has not been finished.
+ *         ANEURALNETWORKS_BAD_DATA if the index is out of range.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding)
+        __INTRODUCED_IN(31);
+
+/**
+ * Get the preferred buffer and memory alignment of an output to an execution created from a
+ * particular compilation.
+ *
+ * The user may use the returned alignment value to guide the layout of the output buffer or memory
+ * pool. To achieve the best performance, make sure the address of the buffer passed in
+ * {@link ANeuralNetworksExecution_setOutput}, or the offset value passed in
+ * {@link ANeuralNetworksExecution_setOutputFromMemory}, is a multiple of the perferred alignment
+ * value of the same output. A driver may choose to allocate a separate buffer and do memory copying
+ * if the provided buffer or memory does not satisfy the preferred alignment.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ *
+ * @param compilation The compilation object. It must already have been finished by calling
+ *                    {@link ANeuralNetworksCompilation_finish}.
+ * @param index The index of the output argument we are referencing from the compilation. It is
+ *              an index into the outputs list passed to
+ *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
+ *              the index associated with {@link ANeuralNetworksModel_addOperand}.
+ * @param padding The returned perferred alignment. It will be a power of 2.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if the compilation has not been finished.
+ *         ANEURALNETWORKS_BAD_DATA if the index is out of range.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment)
+        __INTRODUCED_IN(31);
+
+/**
+ * Get the preferred memory end padding of an output to an execution created from a particular
+ * compilation.
+ *
+ * The user may use the returned padding value to guide the layout of the output buffer or memory
+ * pool. To achieve the best performance, make sure the length value passed in
+ * {@link ANeuralNetworksExecution_setOutput} or
+ * {@link ANeuralNetworksExecution_setOutputFromMemory} is greater than or equal to the raw size of
+ * the output (i.e. the size of an element multiplied by the number of elements) rounding up to
+ * a multiple of the perferred padding value of the same output. A driver may choose to allocate a
+ * separate buffer and do memory copying if the provided buffer or memory value does not satisfy
+ * the preferred padding.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ * See {@link ANeuralNetworksExecution_enableInputAndOutputPadding},
+ * {@link ANeuralNetworksExecution_setOutput}, and
+ * {@link ANeuralNetworksExecution_setOutputFromMemory} for information on passing
+ * output buffer or memory padding to the driver.
+ *
+ * @param compilation The compilation object. It must already have been finished by calling
+ *                    {@link ANeuralNetworksCompilation_finish}.
+ * @param index The index of the output argument we are referencing from the compilation. It is
+ *              an index into the outputs list passed to
+ *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
+ *              the index associated with {@link ANeuralNetworksModel_addOperand}.
+ * @param padding The returned perferred padding. It will be a power of 2.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if the compilation has not been finished.
+ *         ANEURALNETWORKS_BAD_DATA if the index is out of range.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding)
+        __INTRODUCED_IN(31);
 
 __END_DECLS
 

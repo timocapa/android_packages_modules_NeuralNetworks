@@ -26,6 +26,7 @@
 #include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/SharedMemory.h>
+#include <nnapi/Types.h>
 #include <nnapi/Validation.h>
 
 #include <algorithm>
@@ -157,6 +158,16 @@ class DriverPreparedModel : public RuntimePreparedModel {
         return mPreparedModel->configureExecutionBurst();
     }
 
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        if (mDevice->getFeatureLevel() >= __ANDROID_API_S__) {
+            return {kDefaultRequestMemoryAlignment, kDefaultRequestMemoryPadding};
+        } else {
+            // We are not able to pass memory padding information to HIDL drivers, so return the
+            // minimum padding.
+            return {kDefaultRequestMemoryAlignment, kMinMemoryPadding};
+        }
+    }
+
    private:
     const Device* mDevice;
     const SharedPreparedModel mPreparedModel;
@@ -193,8 +204,9 @@ int64_t DriverDevice::getFeatureLevel() const {
         case Version::ANDROID_R:
             return ANEURALNETWORKS_FEATURE_LEVEL_4;
         case Version::ANDROID_S:
-        case Version::CURRENT_RUNTIME:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
+        case Version::CURRENT_RUNTIME:
+            break;
     }
     LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
     return -1;
@@ -789,11 +801,19 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
 
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        return {kPreferredAlignment, kPreferredPadding};
+    }
+
     // Prefer to use CpuPreparedModel::create.
     CpuPreparedModel(Model model, std::vector<RunTimePoolInfo> poolInfos)
         : mModel(std::move(model)), mModelPoolInfos(std::move(poolInfos)) {}
 
    private:
+    // TFLite kernels prefers 64 bytes for padding and alignment.
+    static constexpr uint32_t kPreferredAlignment = 64;
+    static constexpr uint32_t kPreferredPadding = 64;
+
     const Model mModel;
     const std::vector<RunTimePoolInfo> mModelPoolInfos;
 };
