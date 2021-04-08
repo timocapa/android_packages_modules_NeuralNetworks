@@ -226,7 +226,7 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory()->size;
+        length = memory->getSize();
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
@@ -307,7 +307,7 @@ int ExecutionBuilder::setOutputFromMemory(uint32_t index, const ANeuralNetworksO
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory()->size;
+        length = memory->getSize();
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
@@ -1195,10 +1195,10 @@ bool StepExecutor::updateOutputShapes(int executionResultCode, const std::vector
                     changedShape = mDynamicTemporaries->redeclare(sourceOperandIndex,
                                                                   from[i].dimensions, actualSize);
                 } else if (!from[i].isSufficient) {
-                    NN_RET_CHECK(loc->length < UINT32_MAX / 2)
-                            << "output#" << i << " length overflow";
+                    NN_RET_CHECK(loc->paddedLength < UINT32_MAX / 2)
+                            << "output#" << i << " paddedLength overflow";
                     changedShape = mDynamicTemporaries->redeclare(
-                            sourceOperandIndex, from[i].dimensions, 2 * loc->length);
+                            sourceOperandIndex, from[i].dimensions, 2 * loc->paddedLength);
                 } else {
                     // The combination of not-fully-specified dimensions
                     // and isSufficient means that we have no
@@ -1313,20 +1313,18 @@ void StepExecutor::mapInputOrOutput(const ModelArgumentInfo& builderInputOrOutpu
 
 int StepExecutor::setInputOrOutputFromMemory(const Operand& inputOrOutputOperand,
                                              const RuntimeMemory* memory, uint32_t offset,
-                                             const Dimensions& dimensions,
-                                             std::optional<uint32_t> length,
+                                             uint32_t length, const Dimensions& dimensions,
                                              ModelArgumentInfo* inputOrOutputInfo) {
     // Should be similar to
     //     ExecutionBuilder::setInputFromMemory()
     //     ExecutionBuilder::setOutputFromMemory()
 
     uint32_t poolIndex = mMemories.add(memory);
-    uint32_t lengthVal = length.value_or(TypeManager::get()->getSizeOfData(inputOrOutputOperand));
     CHECK(inputOrOutputInfo->unspecified());
     int n;
     std::tie(n, *inputOrOutputInfo) =
             ModelArgumentInfo::createFromMemory(inputOrOutputOperand,
-                                                /*type=*/nullptr, poolIndex, offset, lengthVal);
+                                                /*type=*/nullptr, poolIndex, offset, length);
     if (n == ANEURALNETWORKS_NO_ERROR && dimensions.size()) {
         CHECK(isUpdatable(inputOrOutputInfo->dimensions(), dimensions));
         inputOrOutputInfo->dimensions() = dimensions;
