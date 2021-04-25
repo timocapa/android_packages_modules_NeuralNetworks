@@ -59,6 +59,7 @@ cc_library_static {
         // Needed by neuralnetworks_supportlibrary_loader
         // Should be removed after doing b/117845862
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],
@@ -71,10 +72,11 @@ cc_library_static {
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
+        "libaidlcommonsupport",
         "libarect",
         "libcutils",
+        "libneuralnetworks_common",
         "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_types",
         "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
@@ -114,8 +116,11 @@ cc_library_shared {
     },
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
+        "android.hardware.graphics.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
+        "libaidlcommonsupport",
         "libcutils",
+        "libneuralnetworks_common",
         "neuralnetworks_supportlibrary_loader",
         "neuralnetworks_types",
         "neuralnetworks_utils_hal_aidl",
@@ -154,6 +159,7 @@ cc_library_static {
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],
