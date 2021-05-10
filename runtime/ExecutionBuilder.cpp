@@ -25,6 +25,7 @@
 #include <android-base/logging.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
+#include <nnapi/Types.h>
 
 #include <algorithm>
 #include <limits>
@@ -943,8 +944,9 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
     }
     for (uint32_t i = 0; i < mOutputs.size(); i++) {
         if (mOutputs[i].state() != ModelArgumentInfo::HAS_NO_VALUE &&
-            !checkDimensionInfo(mModel->getOutputOperand(i), nullptr,
-                                "ANeuralNetworksExecution_startComputeWithDependencies", false)) {
+            TypeManager::get()->isTensorType(mModel->getOutputOperand(i).type) &&
+            tensorHasUnspecifiedDimensions(mModel->getOutputOperand(i).type,
+                                           mOutputs[i].initialDimensions())) {
             LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
                           " not all outputs have fully specified dimensions";
             return finishComputation(ANEURALNETWORKS_BAD_DATA, {});

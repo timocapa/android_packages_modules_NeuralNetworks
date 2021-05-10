@@ -515,6 +515,15 @@ ndk::ScopedAStatus ShimDevice::getVersionString(std::string* versionString) {
     return ndk::ScopedAStatus::ok();
 }
 
+static std::vector<int> getIntFds(const std::vector<::ndk::ScopedFileDescriptor>& scopedFds) {
+    std::vector<int> fds;
+    fds.reserve(scopedFds.size());
+    for (const auto& scopedFd : scopedFds) {
+        fds.push_back(scopedFd.get());
+    }
+    return fds;
+}
+
 ndk::ScopedAStatus ShimDevice::prepareModel(
         const Model& model, ExecutionPreference preference, Priority priority, int64_t deadlineNs,
         const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
@@ -523,6 +532,17 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
         const std::shared_ptr<IPreparedModelCallback>& callback) {
     // TODO(183398748): Run model preparation in detached thread.
     if (callback == nullptr) {
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    }
+
+    auto ndkPreference = convertToNDKPreference(preference);
+    if (!ndkPreference) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    }
+    auto ndkPriority = convertToNDKPriority(priority);
+    if (!ndkPriority) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
         return toAStatus(ErrorStatus::INVALID_ARGUMENT);
     }
 
@@ -536,39 +556,36 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
         return toAStatus(convertErrorStatus);
     }
 
+    // b/185976051, past this point we pretend that compilation is asynchronous, and in
+    /// case of error we return OK status, but communicate the error through the callback.
     auto compilation = ::android::nn::sl_wrapper::Compilation::createForDevice(
             mNnapi.get(), &modelAndMemory->models[0], mDevice);
-    if (compilation.first != Result::NO_ERROR) {
-        // b/185976051, if some operation is not supported, this will result in BAD_DATA
-        // from compilation. HAL expects us to say it's all ok on prepareModel, but return
-        // failure from the callback.
-        if (compilation.first == Result::BAD_DATA) {
-            callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.first, callback);
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPreference(*ndkPreference),
+                                                  callback);
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPriority(*ndkPriority),
+                                                  callback);
+    if (deadlineNs > -1) {
+        std::chrono::time_point<::android::base::boot_clock> deadlinePoint(
+                std::chrono::nanoseconds{deadlineNs});
+        const auto currentTime = ::android::base::boot_clock::now();
+        const auto timeoutDuration = std::chrono::nanoseconds(deadlinePoint - currentTime);
+        if (timeoutDuration <= std::chrono::nanoseconds::zero()) {
+            callback->notify(ErrorStatus::MISSED_DEADLINE_TRANSIENT, nullptr);
             return ndk::ScopedAStatus::ok();
-        } else {
-            SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.first, callback);
         }
+        SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(
+                compilation.second.setTimeout(std::max<uint64_t>(1, timeoutDuration.count())),
+                callback);
     }
-
-    if (auto p = convertToNDKPreference(preference)) {
-        SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.second.setPreference(*p), callback);
-    } else {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    if (!modelCache.empty() || !dataCache.empty()) {
+        SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(
+                compilation.second.setCachingFromFds(getIntFds(modelCache), getIntFds(dataCache),
+                                                     token),
+                callback);
     }
-
-    if (auto p = convertToNDKPriority(priority)) {
-        SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.second.setPriority(*p), callback);
-    } else {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-    }
-
-    // TODO(170375075): support caching and deadline
-    if (compilation.second.finish() != Result::NO_ERROR) {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-    }
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.finish(), callback);
 
     const std::shared_ptr<ShimPreparedModel> preparedModel =
             ndk::SharedRefBase::make<ShimPreparedModel>(
@@ -577,28 +594,21 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
                     std::move(copiedOperandValues));
 
     callback->notify(ErrorStatus::NONE, preparedModel);
-
-    // TODO(170375075): support caching and deadline
-    (void)deadlineNs;
-    (void)modelCache;
-    (void)dataCache;
-    (void)token;
     return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus ShimDevice::prepareModelFromCache(
-        int64_t deadlineNs, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
-        const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
-        const std::vector<uint8_t>& token,
+        int64_t /*deadlineNs*/, const std::vector<::ndk::ScopedFileDescriptor>& /*modelCache*/,
+        const std::vector<::ndk::ScopedFileDescriptor>& /*dataCache*/,
+        const std::vector<uint8_t>& /*token*/,
         const std::shared_ptr<IPreparedModelCallback>& callback) {
+    // The NNAPI runtime will attempt to call this before falling back to
+    // ShimDevice::prepareModel(). This is not a LOG(ERROR) to avoid producing
+    // misleading logcat messages on every compilation request because there is
+    // technically nothing wrong.
+    LOG(DEBUG) << "ShimDevice::prepareModelFromCache() is not supported. Use "
+                  "ShimDevice::prepareModel() instead.";
     const auto ret = callback->notify(ErrorStatus::GENERAL_FAILURE, nullptr);
-
-    (void)deadlineNs;
-    (void)modelCache;
-    (void)dataCache;
-    (void)token;
-
-    // TODO(170375075): support caching and deadline
     return toAStatus(ErrorStatus::GENERAL_FAILURE);
 }
 

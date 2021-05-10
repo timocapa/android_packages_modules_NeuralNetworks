@@ -1695,8 +1695,9 @@ int SL_ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* 
         LOG(ERROR) << "SL_ANeuralNetworksCompilation_setCachingFromFds passed a nullptr";
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
-    LOG(ERROR) << "Unimplemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    CompilationBuilder* c = reinterpret_cast<CompilationBuilder*>(compilation);
+    return c->setCachingFromFds(modelCacheFds, numModelCacheFiles, dataCacheFds, numDataCacheFiles,
+                                token);
 }
 
 int SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(const ANeuralNetworksDevice* device,
@@ -1872,6 +1873,7 @@ NnApiSLDriverImplFL5 slDriverImpl{
         NNCL_FUNC(ANeuralNetworksCompilation_setPriority),
         NNCL_FUNC(ANeuralNetworksCompilation_setTimeout),
         NNCL_FUNC(ANeuralNetworksDevice_getExtensionSupport),
+        NNCL_FUNC(ANeuralNetworksDevice_getFeatureLevel),
         NNCL_FUNC(ANeuralNetworksDevice_getName),
         NNCL_FUNC(ANeuralNetworksDevice_getType),
         NNCL_FUNC(ANeuralNetworksDevice_getVersion),
