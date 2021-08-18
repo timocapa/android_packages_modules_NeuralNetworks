@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,19 @@
  * limitations under the License.
  */
 
-#pragma once
+#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H
+#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H
 
-#include "SupportLibraryDiagnostic.h"
+#include <nnapi/Types.h>
 
-ANeuralNetworksDiagnosticCompilationFinishedCallback getOnCompilationFinishedCallback();
-ANeuralNetworksDiagnosticExecutionFinishedCallback getOnExecutionFinishedCallback();
+namespace android::nn {
+
+// Generated hash from canonical model operations and operands.
+// Weights do not affect this hash.
+bool calcModelArchHash(const Model& model, uint8_t* data);
+
+static const int BYTE_SIZE_OF_MODEL_ARCH_HASH = 32;
+
+}  // namespace android::nn
+
+#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H
