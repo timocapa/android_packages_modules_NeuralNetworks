@@ -194,9 +194,10 @@ enum class TestOperationType {
     HARD_SWISH = 99,
     FILL = 100,
     RANK = 101,
+    BATCH_MATMUL = 102,
 };
 
-enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3 };
+enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3, FL_6 };
 
 // Manages the data buffer for a test operand.
 class TestBuffer {

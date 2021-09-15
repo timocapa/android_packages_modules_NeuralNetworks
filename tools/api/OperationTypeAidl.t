@@ -1,5 +1,7 @@
+%% Template file for generating OperationType.aidl.
+%% see README.md.
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +16,19 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H
-#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H
+package android.hardware.neuralnetworks;
 
-#include "NeuralNetworks.h"
+%insert Operation_1.0_Comment
+@VintfStability
+@Backing(type="int")
+enum OperationType {
+%insert Operation_1.0
 
-namespace android {
-namespace nn {
+%insert Operation_1.1
 
-// The current feature level of the NNAPI Runtime
-constexpr FeatureLevelCode kCurrentNNAPIRuntimeFeatureLevel = ANEURALNETWORKS_FEATURE_LEVEL_6;
+%insert Operation_1.2
 
-}  // namespace nn
-}  // namespace android
+%insert Operation_1.3
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H
+%insert Operation_fl6
+}

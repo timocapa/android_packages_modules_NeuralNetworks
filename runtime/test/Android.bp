@@ -48,9 +48,9 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.graphics.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.graphics.common-V2-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -108,6 +108,7 @@ cc_defaults {
         "libvulkan",
     ],
     whole_static_libs: [
+        "neuralnetworks_generated_FL_6_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",
@@ -452,6 +453,12 @@ cc_library_static {
     name: "neuralnetworks_generated_V1_3_example",
     defaults: ["neuralnetworks_generated_defaults"],
     srcs: ["generated/spec_V1_3/*.example.cpp"],
+}
+
+cc_library_static {
+    name: "neuralnetworks_generated_FL_6_example",
+    defaults: ["neuralnetworks_generated_defaults"],
+    srcs: ["generated/spec_FL_6/*.example.cpp"],
 }
 
 cc_library_static {

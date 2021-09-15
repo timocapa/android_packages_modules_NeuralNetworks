@@ -235,7 +235,15 @@ using OptionalTimePoint = std::optional<TimePoint>;
 // Returns status, timingLaunched, timingFenced
 using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
-enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
+enum class Version {
+    ANDROID_OC_MR1,
+    ANDROID_P,
+    ANDROID_Q,
+    ANDROID_R,
+    ANDROID_S,
+    FEATURE_LEVEL_6,
+    CURRENT_RUNTIME,
+};
 
 // Describes the memory preference of an operand.
 struct MemoryPreference {
