@@ -48,9 +48,9 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.graphics.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.graphics.common-V2-ndk",
+        "android.hardware.neuralnetworks-V1-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -229,9 +229,6 @@ cc_fuzz {
     owner: "google",
     fuzz_config: {
         cc: ["butlermichael@google.com"],
-        // Temporarily disabled due to b/151102177.
-        fuzz_on_haiku_host: false,
-        fuzz_on_haiku_device: false,
     },
     srcs: [
         "android_fuzzing/FuzzTest.cpp",
@@ -252,9 +249,6 @@ cc_fuzz {
     owner: "google",
     fuzz_config: {
         cc: ["butlermichael@google.com"],
-        // Temporarily disabled due to b/151102177.
-        fuzz_on_haiku_host: false,
-        fuzz_on_haiku_device: false,
     },
     srcs: [
         "android_fuzzing/DriverFuzzTest.cpp",
