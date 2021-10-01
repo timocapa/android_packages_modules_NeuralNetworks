@@ -621,11 +621,7 @@ struct Operand {
     ExtraParams extraParams;
 };
 
-struct Handle {
-    std::vector<base::unique_fd> fds;
-    std::vector<int> ints;
-};
-
+using Handle = base::unique_fd;
 using SharedHandle = std::shared_ptr<const Handle>;
 
 struct Memory {
@@ -649,6 +645,10 @@ struct Memory {
     };
 
     struct Unknown {
+        struct Handle {
+            std::vector<base::unique_fd> fds;
+            std::vector<int> ints;
+        };
         Handle handle;
         size_t size;
         std::string name;
