@@ -256,6 +256,9 @@ int64_t DriverDevice::getFeatureLevel() const {
         case Version::ANDROID_S:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
         case Version::CURRENT_RUNTIME:
+#ifdef NN_EXPERIMENTAL_FEATURE
+        case Version::EXPERIMENTAL:
+#endif  // NN_EXPERIMENTAL_FEATURE
             break;
     }
     LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
@@ -1229,6 +1232,7 @@ std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const SharedDevi
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+#ifdef __ANDROID__
     const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
     const bool currentProcessIsOnThePlatform =
             appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
@@ -1243,6 +1247,9 @@ std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
         driverDevices.push_back(DriverDevice::create(std::move(device), isDeviceUpdatable));
     }
     return driverDevices;
+#else   // __ANDROID__
+    return {};
+#endif  // __ANDROID__
 }
 #else
 std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {

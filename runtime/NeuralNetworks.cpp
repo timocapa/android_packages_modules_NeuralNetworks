@@ -45,6 +45,7 @@
 #include "ModelBuilder.h"
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
+#include "Telemetry.h"
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 #include "NeuralNetworksSupportLibraryImpl.h"
@@ -1251,7 +1252,10 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) {
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
     CompilationBuilder* c = reinterpret_cast<CompilationBuilder*>(compilation);
-    return c->finish();
+    int result = c->finish();
+    telemetry::onCompilationFinish(c, result);
+
+    return result;
 }
 
 int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilation, int priority) {
@@ -1607,7 +1611,9 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
             syncFenceToSignal, r->getExecuteFencedInfoCallback(),
             // TODO(miaowang): support dynamic output shape only with memory domain.
             // For now just return empty output shapes.
-            [r](ErrorStatus status) { return r->finishComputation(status, {}); });
+            [r](ErrorStatus status) {
+                return r->finishComputation(status, {}, ExecutionMode::ASYNC_WITH_DEPS);
+            });
     close(syncFenceToSignal);
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
@@ -1950,6 +1956,32 @@ NnApiSLDriverImplFL5 slDriverImpl{
         NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionCount),
         NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionName),
         NNCL_FUNC(SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getSessionId),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getNnApiVersion),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getModelArchHash),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getDeviceIds),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getErrorCode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getInputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getOutputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getCompilationTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_isCachingEnabled),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_isControlFlowUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_areDynamicTensorsUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getSessionId),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getNnApiVersion),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getModelArchHash),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getDeviceIds),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getExecutionMode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getInputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getOutputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getErrorCode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getRuntimeExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getDriverExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getHardwareExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_isCachingEnabled),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_isControlFlowUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_areDynamicTensorsUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnostic_registerCallbacks),
 };
 
 #undef NNCL_FUNC
