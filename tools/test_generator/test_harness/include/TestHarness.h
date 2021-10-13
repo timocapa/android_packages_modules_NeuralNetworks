@@ -195,6 +195,7 @@ enum class TestOperationType {
     FILL = 100,
     RANK = 101,
     BATCH_MATMUL = 102,
+    PACK = 103,
 };
 
 enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3, FL_6 };
