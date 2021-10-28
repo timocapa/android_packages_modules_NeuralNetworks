@@ -42,11 +42,14 @@
  *   - DO NOT CHANGE THE LAYOUT OR SIZE OF STRUCTURES
  */
 
-#include <android/hardware_buffer.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#endif  // __ANDROID__
 
 __BEGIN_DECLS
 
@@ -194,7 +197,6 @@ typedef enum {
      * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED = 14,
-
     /**
      * A reference to a model.
      *
@@ -5578,7 +5580,7 @@ typedef enum {
      * The output is calculated using the following formula:
      *
      *     h-swish(x) = x * max(0, min(6, (x + 3))) / 6
-
+     *
      * Supported tensor {@link OperandCode}:
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT16}
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT32}

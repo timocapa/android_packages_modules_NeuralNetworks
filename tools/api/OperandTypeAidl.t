@@ -1,5 +1,7 @@
+%% Template file for generating OperandType.aidl.
+%% See README.md.
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +16,13 @@
  * limitations under the License.
  */
 
-#pragma once
+package android.hardware.neuralnetworks;
 
-#include "SupportLibraryDiagnostic.h"
-
-ANeuralNetworksDiagnosticCompilationFinishedCallback getOnCompilationFinishedCallback();
-ANeuralNetworksDiagnosticExecutionFinishedCallback getOnExecutionFinishedCallback();
+%insert Operand_1.0_Comment
+@VintfStability
+@Backing(type="int")
+enum OperandType {
+%insert Operand_1.0
+%insert Operand_1.2
+%insert Operand_1.3
+}
