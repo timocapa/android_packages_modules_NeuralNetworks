@@ -242,6 +242,7 @@ enum class Version {
     ANDROID_R,
     ANDROID_S,
     FEATURE_LEVEL_6,
+    FEATURE_LEVEL_7,
     CURRENT_RUNTIME,
 };
 

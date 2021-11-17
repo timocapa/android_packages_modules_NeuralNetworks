@@ -557,6 +557,10 @@ std::ostream& operator<<(std::ostream& os, const OperationType& operationType) {
             return os << "BATCH_MATMUL";
         case OperationType::PACK:
             return os << "PACK";
+        case OperationType::MIRROR_PAD:
+            return os << "MIRROR_PAD";
+        case OperationType::REVERSE:
+            return os << "REVERSE";
         case OperationType::OEM_OPERATION:
             return os << "OEM_OPERATION";
     }
@@ -894,6 +898,8 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_S";
         case Version::FEATURE_LEVEL_6:
             return os << "FEATURE_LEVEL_6";
+        case Version::FEATURE_LEVEL_7:
+            return os << "FEATURE_LEVEL_7";
         case Version::CURRENT_RUNTIME:
             return os << "CURRENT_RUNTIME";
     }

@@ -236,7 +236,8 @@ TEST_P(GeneratedComplianceTest, Test) {
             break;
         case TestHalVersion::AIDL_V1:
         case TestHalVersion::AIDL_V2:
-            // TODO(b/202585778): Add testAvailableSinceAIDL_V1 and testAvailableSinceAIDL_V2.
+        case TestHalVersion::AIDL_V3:
+            // TODO(b/202585778): Add testAvailableSinceAIDL_V1 and testAvailableSinceAIDL_V2 and testAvailableSinceAIDL_V3.
             break;
         case TestHalVersion::UNKNOWN:
             FAIL();
