@@ -290,13 +290,13 @@ struct ApiVersion {
     int64_t featureLevel;
 };
 
-constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = Version::ANDROID_OC_MR1,
+constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = kVersionFeatureLevel1,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_1};
-constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = Version::ANDROID_P,
+constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = kVersionFeatureLevel2,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_2};
-constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = Version::ANDROID_Q,
+constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = kVersionFeatureLevel3,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_3};
-constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = Version::ANDROID_R,
+constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = kVersionFeatureLevel4,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_4};
 
 // Utility that measures time period, in nanoseconds, from creation
