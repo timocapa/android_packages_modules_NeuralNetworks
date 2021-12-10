@@ -58,6 +58,7 @@ cc_defaults {
         "libneuralnetworks_generated_test_harness",
         "libtextclassifier_hash_static",
         "neuralnetworks_utils_hal_service",
+        "server_configurable_flags",
     ],
     whole_static_libs: [
         "libcrypto_static",
@@ -229,6 +230,7 @@ cc_test {
         "libneuralnetworks_common",
         "libneuralnetworks_static",
         "neuralnetworks_types",
+        "server_configurable_flags",
     ],
     static_libs: [
         "libneuralnetworks_common_experimental",
@@ -325,11 +327,15 @@ cc_fuzz {
     srcs: [
         "android_fuzzing/DriverFuzzTest.cpp",
     ],
+    header_libs: [
+        "libneuralnetworks_headers",
+    ],
     static_libs: [
-        "libSampleDriver",
         "libneuralnetworks_common",
         "libneuralnetworks_generated_test_harness",
-        "libneuralnetworks_static",
+        "neuralnetworks_canonical_sample_driver",
+        "neuralnetworks_test_utils",
+        "neuralnetworks_types",
     ],
 }
 
