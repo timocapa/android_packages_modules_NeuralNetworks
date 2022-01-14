@@ -21,6 +21,7 @@
 #include <android-base/macros.h>
 
 #include <ostream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,16 +31,6 @@
 #include "nnapi/Types.h"
 
 namespace android::nn {
-
-enum class HalVersion : int32_t {
-    UNKNOWN,
-    V1_0,
-    V1_1,
-    V1_2,
-    V1_3,
-    AIDL_UNSTABLE,
-    LATEST = V1_3,
-};
 
 // The latest version of the HAL allowed by the Experimental Feature Level flag.
 Version getLatestHalVersion();
@@ -66,6 +57,9 @@ inline uint16_t getTypeWithinExtension(uint32_t type) {
 
 std::optional<size_t> getNonExtensionSize(OperandType operandType, const Dimensions& dimensions);
 std::optional<size_t> getNonExtensionSize(const Operand& operand);
+
+bool tensorHasUnspecifiedDimensions(OperandType type, const Dimensions& dimensions);
+bool tensorHasUnspecifiedDimensions(const Operand& operand);
 
 size_t getOffsetFromInts(int lower, int higher);
 std::pair<int32_t, int32_t> getIntsFromOffset(size_t offset);
@@ -142,7 +136,6 @@ std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTime
 std::ostream& operator<<(std::ostream& os, const Duration& timeoutDuration);
 std::ostream& operator<<(std::ostream& os, const OptionalDuration& optionalTimeoutDuration);
 std::ostream& operator<<(std::ostream& os, const Version& version);
-std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion);
 
 bool operator==(const Timing& a, const Timing& b);
 bool operator!=(const Timing& a, const Timing& b);
@@ -170,6 +163,43 @@ bool operator==(const Operand& a, const Operand& b);
 bool operator!=(const Operand& a, const Operand& b);
 bool operator==(const Operation& a, const Operation& b);
 bool operator!=(const Operation& a, const Operation& b);
+
+inline std::string toString(uint32_t obj) {
+    return std::to_string(obj);
+}
+
+template <typename A, typename B>
+std::string toString(const std::pair<A, B>& pair) {
+    std::ostringstream oss;
+    oss << "(" << pair.first << ", " << pair.second << ")";
+    return oss.str();
+}
+
+template <typename Type>
+std::string toString(const std::vector<Type>& vec) {
+    std::string os = "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        os += (i == 0 ? "" : ", ") + toString(vec[i]);
+    }
+    return os += "]";
+}
+
+/* IMPORTANT: if you change the following list, don't
+ * forget to update the corresponding 'tags' table in
+ * the initVlogMask() function implemented in Utils.cpp.
+ */
+enum VLogFlags { MODEL = 0, COMPILATION, EXECUTION, CPUEXE, MANAGER, DRIVER, MEMORY };
+
+#define VLOG_IS_ON(TAG) ((vLogMask & (1 << (TAG))) != 0)
+
+#define VLOG(TAG)                 \
+    if (LIKELY(!VLOG_IS_ON(TAG))) \
+        ;                         \
+    else                          \
+        LOG(INFO)
+
+extern int vLogMask;
+void initVLogMask();
 
 // The NN_RET_CHECK family of macros defined below is similar to the CHECK family defined in
 // system/libbase/include/android-base/logging.h
