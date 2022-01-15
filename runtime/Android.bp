@@ -78,6 +78,7 @@ cc_library_headers {
 
 cc_defaults {
     name: "libneuralnetworks_defaults",
+    defaults: ["neuralnetworks_use_latest_utils_hal_aidl"],
     host_supported: true,
     use_version_lib: true,
     // b/109953668, disable OpenMP
@@ -95,6 +96,7 @@ cc_defaults {
         "ModelArgumentInfo.cpp",
         "ModelBuilder.cpp",
         "NeuralNetworks.cpp",
+        "ServerFlag.cpp",
         "Telemetry.cpp",
         "TypeManager.cpp",
     ],
@@ -121,9 +123,6 @@ cc_defaults {
     // TODO(pszczepaniak, b/144488395): Use system libnativewindow,
     // this would remove half of dependencies here.
     static_libs: [
-        "android.hardware.common-V2-ndk",
-        "android.hardware.graphics.common-V3-ndk",
-        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -144,6 +143,8 @@ cc_defaults {
         "libtextclassifier_hash_static",
         "libutils",
         "neuralnetworks_types",
+        "neuralnetworks_utils_hal_service",
+        "server_configurable_flags",
     ],
 
     stl: "libc++_static",
@@ -205,8 +206,14 @@ cc_library_static {
         "libneuralnetworks_defaults",
         "neuralnetworks_defaults",
     ],
-    exclude_static_libs: ["libneuralnetworks_common"],
-    static_libs: ["libneuralnetworks_common_experimental"],
+    exclude_static_libs: [
+        "libneuralnetworks_common",
+        "neuralnetworks_types",
+    ],
+    static_libs: [
+        "libneuralnetworks_common_experimental",
+        "neuralnetworks_types_experimental",
+    ],
     cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
     apex_available: ["//apex_available:platform"],
 }
