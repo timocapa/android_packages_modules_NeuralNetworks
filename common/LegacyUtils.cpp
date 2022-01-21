@@ -54,6 +54,10 @@ std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion) {
             return os << "HAL version 1.2";
         case HalVersion::V1_3:
             return os << "HAL version 1.3";
+        case HalVersion::AIDL_V1:
+            return os << "HAL version AIDL_V1";
+        case HalVersion::AIDL_V2:
+            return os << "HAL version AIDL_V2";
         case HalVersion::AIDL_UNSTABLE:
             return os << "HAL uses unstable AIDL";
     }
@@ -129,15 +133,19 @@ static Version convert(HalVersion halVersion) {
         case HalVersion::UNKNOWN:
             break;
         case HalVersion::V1_0:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case HalVersion::V1_1:
-            return Version::ANDROID_P;
+            return kVersionFeatureLevel2;
         case HalVersion::V1_2:
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         case HalVersion::V1_3:
-            return Version::ANDROID_R;
+            return kVersionFeatureLevel4;
+        case HalVersion::AIDL_V1:
+            return kVersionFeatureLevel5;
+        case HalVersion::AIDL_V2:
+            return kVersionFeatureLevel6;
         case HalVersion::AIDL_UNSTABLE:
-            return Version::ANDROID_S;
+            return kVersionFeatureLevel7;
     }
     LOG(FATAL) << "Cannot convert " << halVersion;
     return {};

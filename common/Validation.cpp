@@ -43,56 +43,6 @@
 #include "TypeUtils.h"
 #include "Types.h"
 
-// The NN_VALIDATE family of macros defined below is similar to the CHECK family defined in
-// system/libbase/include/android-base/logging.h
-//
-// The difference is that NN_VALIDATE macros use LOG(ERROR) instead of LOG(FATAL)
-// and return false instead of aborting.
-
-// Logs an error and returns false or INVALID. Append context using << after. For example:
-//
-//   NN_VALIDATE_FAIL() << "Something went wrong";
-//
-// The containing function must return a bool or Version.
-#define NN_VALIDATE_FAIL() \
-    return NN_ERROR() << "NN_VALIDATE failed (" << __FILE__ << ":" << __LINE__ << "): "
-
-// Logs an error and returns false or Version::INVALID if condition is false. Extra logging can be
-// appended using << after. For example:
-//
-//   NN_VALIDATE(false) << "Something went wrong";
-//
-// The containing function must return a bool.
-#define NN_VALIDATE(condition) \
-    while (UNLIKELY(!(condition))) NN_VALIDATE_FAIL() << #condition << " "
-
-// Helper for NN_VALIDATE_xx(x, y) macros.
-#define NN_VALIDATE_OP(LHS, RHS, OP)                                                        \
-    for (auto _values = ::android::base::MakeEagerEvaluator(LHS, RHS);                      \
-         UNLIKELY(!(_values.lhs.v OP _values.rhs.v));                                       \
-         /* empty */)                                                                       \
-    NN_VALIDATE_FAIL()                                                                      \
-            << #LHS << " " << #OP << " " << #RHS << " (" << #LHS << " = "                   \
-            << ::android::base::LogNullGuard<decltype(_values.lhs.v)>::Guard(_values.lhs.v) \
-            << ", " << #RHS << " = "                                                        \
-            << ::android::base::LogNullGuard<decltype(_values.rhs.v)>::Guard(_values.rhs.v) \
-            << ") "
-
-// Logs an error and returns false or Version::INVALID if a condition between x and y does not hold.
-// Extra logging can be appended using << after. For example:
-//
-//   NN_VALIDATE_EQ(a, b) << "Something went wrong";
-//
-// The values must implement the appropriate comparison operator as well as
-// `operator<<(std::ostream&, ...)`.
-// The containing function must return a bool or Version.
-#define NN_VALIDATE_EQ(x, y) NN_VALIDATE_OP(x, y, ==)
-#define NN_VALIDATE_NE(x, y) NN_VALIDATE_OP(x, y, !=)
-#define NN_VALIDATE_LE(x, y) NN_VALIDATE_OP(x, y, <=)
-#define NN_VALIDATE_LT(x, y) NN_VALIDATE_OP(x, y, <)
-#define NN_VALIDATE_GE(x, y) NN_VALIDATE_OP(x, y, >=)
-#define NN_VALIDATE_GT(x, y) NN_VALIDATE_OP(x, y, >)
-
 namespace android::nn {
 namespace {
 
@@ -102,7 +52,7 @@ constexpr auto kInvalidMemoryDomainToken = Request::MemoryDomainToken{};
 template <typename Type, typename ValidationFunction>
 Result<Version> validateVector(const std::vector<Type>& objects,
                                const ValidationFunction& validationFunction) {
-    auto version = Version::ANDROID_OC_MR1;
+    auto version = kVersionFeatureLevel1;
     for (const auto& object : objects) {
         version = combineVersions(version, NN_TRY(validationFunction(object)));
     }
@@ -124,9 +74,9 @@ Result<Version> validateDeviceStatus(const DeviceStatus& deviceStatus) {
         case DeviceStatus::BUSY:
         case DeviceStatus::OFFLINE:
         case DeviceStatus::UNKNOWN:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
-    NN_VALIDATE_FAIL() << "Invalid DeviceStatus " << deviceStatus;
+    NN_RET_CHECK_FAIL() << "Invalid DeviceStatus " << deviceStatus;
 }
 
 Result<Version> validateExecutionPreference(const ExecutionPreference& executionPreference) {
@@ -134,12 +84,12 @@ Result<Version> validateExecutionPreference(const ExecutionPreference& execution
         case ExecutionPreference::FAST_SINGLE_ANSWER:
             // ExecutionPreference::FAST_SINGLE_ANSWER is the default value, so it is implicitly
             // valid for all versions.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case ExecutionPreference::LOW_POWER:
         case ExecutionPreference::SUSTAINED_SPEED:
-            return Version::ANDROID_P;
+            return kVersionFeatureLevel2;
     }
-    NN_VALIDATE_FAIL() << "Invalid ExecutionPreference " << executionPreference;
+    NN_RET_CHECK_FAIL() << "Invalid ExecutionPreference " << executionPreference;
 }
 
 Result<Version> validateDeviceType(const DeviceType& deviceType) {
@@ -150,25 +100,25 @@ Result<Version> validateDeviceType(const DeviceType& deviceType) {
             // valid code to return for a driver that implement at least a 1.2 NN HAL. If we need a
             // range of versions, make ANDROID_Q (NN HAL 1.2) the exclusive upper bound for
             // DeviceType::UNKNOWN.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case DeviceType::OTHER:
         case DeviceType::CPU:
         case DeviceType::GPU:
         case DeviceType::ACCELERATOR:
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid DeviceType " << deviceType;
+    NN_RET_CHECK_FAIL() << "Invalid DeviceType " << deviceType;
 }
 
 Result<Version> validateMeasureTiming(const MeasureTiming& measureTiming) {
     switch (measureTiming) {
         case MeasureTiming::NO:
             // MeasureTiming::NO is the default value, so it is implicitly valid for all versions.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case MeasureTiming::YES:
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid MeasureTiming " << measureTiming;
+    NN_RET_CHECK_FAIL() << "Invalid MeasureTiming " << measureTiming;
 }
 
 Result<Version> validateOperandType(const OperandType& operandType) {
@@ -181,7 +131,7 @@ Result<Version> validateOperandType(const OperandType& operandType) {
         case OperandType::TENSOR_QUANT8_ASYMM:
         case OperandType::OEM:
         case OperandType::TENSOR_OEM_BYTE:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::BOOL:
         case OperandType::TENSOR_QUANT16_SYMM:
         case OperandType::TENSOR_FLOAT16:
@@ -190,21 +140,21 @@ Result<Version> validateOperandType(const OperandType& operandType) {
         case OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL:
         case OperandType::TENSOR_QUANT16_ASYMM:
         case OperandType::TENSOR_QUANT8_SYMM:
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         case OperandType::TENSOR_QUANT8_ASYMM_SIGNED:
         case OperandType::SUBGRAPH:
-            return Version::ANDROID_R;
+            return kVersionFeatureLevel4;
     }
     if (isExtension(operandType)) {
-        return Version::ANDROID_Q;
+        return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid OperandType " << operandType;
+    NN_RET_CHECK_FAIL() << "Invalid OperandType " << operandType;
 }
 
 Result<Version> validateOperandLifeTime(const Operand& operand) {
     // Make sure SUBGRAPH operand type and lifetime always go together.
-    NN_VALIDATE_EQ((operand.type == OperandType::SUBGRAPH),
-                   (operand.lifetime == Operand::LifeTime::SUBGRAPH))
+    NN_RET_CHECK_EQ((operand.type == OperandType::SUBGRAPH),
+                    (operand.lifetime == Operand::LifeTime::SUBGRAPH))
             << "Operand of type " << operand.type << " cannot have lifetime " << operand.lifetime;
 
     switch (operand.lifetime) {
@@ -215,23 +165,23 @@ Result<Version> validateOperandLifeTime(const Operand& operand) {
         case Operand::LifeTime::CONSTANT_REFERENCE:
         case Operand::LifeTime::NO_VALUE:
         case Operand::LifeTime::POINTER:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case Operand::LifeTime::SUBGRAPH:
-            return Version::ANDROID_R;
+            return kVersionFeatureLevel4;
     }
-    NN_VALIDATE_FAIL() << "Invalid Operand::LifeTime " << operand.lifetime;
+    NN_RET_CHECK_FAIL() << "Invalid Operand::LifeTime " << operand.lifetime;
 }
 
 Result<Version> validatePriority(const Priority& priority) {
     switch (priority) {
         case Priority::MEDIUM:
             // Priority::MEDIUM is the default value, so it is implicitly valid for all versions.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case Priority::LOW:
         case Priority::HIGH:
-            return Version::ANDROID_R;
+            return kVersionFeatureLevel4;
     }
-    NN_VALIDATE_FAIL() << "Invalid Priority " << priority;
+    NN_RET_CHECK_FAIL() << "Invalid Priority " << priority;
 }
 
 Result<Version> validateErrorStatus(const ErrorStatus& errorStatus) {
@@ -248,9 +198,9 @@ Result<Version> validateErrorStatus(const ErrorStatus& errorStatus) {
         case ErrorStatus::RESOURCE_EXHAUSTED_TRANSIENT:
         case ErrorStatus::RESOURCE_EXHAUSTED_PERSISTENT:
         case ErrorStatus::DEAD_OBJECT:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
-    NN_VALIDATE_FAIL() << "Invalid ErrorStatus " << errorStatus;
+    NN_RET_CHECK_FAIL() << "Invalid ErrorStatus " << errorStatus;
 }
 
 Result<Version> validateFusedActivationFunc(const FusedActivationFunc& activation) {
@@ -259,24 +209,24 @@ Result<Version> validateFusedActivationFunc(const FusedActivationFunc& activatio
         case FusedActivationFunc::RELU:
         case FusedActivationFunc::RELU1:
         case FusedActivationFunc::RELU6:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
-    NN_VALIDATE_FAIL() << "Invalid FusedActivationFunc " << activation;
+    NN_RET_CHECK_FAIL() << "Invalid FusedActivationFunc " << activation;
 }
 
 Result<Version> validateOutputShape(const OutputShape& /*outputShape*/) {
-    return Version::ANDROID_Q;
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateTiming(const Timing& timing) {
     constexpr auto kNoTiming = Timing{};
     if (timing == kNoTiming) {
         // kNoTiming is the default value, so it is implicitly valid for all versions.
-        return Version::ANDROID_OC_MR1;
+        return kVersionFeatureLevel1;
     }
     if (timing.timeInDriver.has_value() && timing.timeOnDevice.has_value()) {
         // `lazyMessage` is a lazy function to produce the timing validation error message.
-        // Currently, the code is not able to inline the message in NN_VALIDATE due to a
+        // Currently, the code is not able to inline the message in NN_RET_CHECK due to a
         // argument-dependent lookup issue with nn::detail::ErrorBuilder interacting with std types
         // such as std::chrono::duration, so this function uses an indirection through
         // std::ostringstream.
@@ -286,16 +236,16 @@ Result<Version> validateTiming(const Timing& timing) {
                 << ") must not exceed Timing::timeInDriver (" << timing.timeInDriver.value() << ")";
             return oss.str();
         };
-        NN_VALIDATE(timing.timeOnDevice.value() <= timing.timeInDriver.value()) << lazyMessage();
+        NN_RET_CHECK(timing.timeOnDevice.value() <= timing.timeInDriver.value()) << lazyMessage();
     }
-    return Version::ANDROID_Q;
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateCapabilitiesPerformanceInfo(
         const Capabilities::PerformanceInfo& performanceInfo) {
-    NN_VALIDATE_GT(performanceInfo.execTime, 0.0f);
-    NN_VALIDATE_GT(performanceInfo.powerUsage, 0.0f);
-    return Version::ANDROID_OC_MR1;
+    NN_RET_CHECK_GT(performanceInfo.execTime, 0.0f);
+    NN_RET_CHECK_GT(performanceInfo.powerUsage, 0.0f);
+    return kVersionFeatureLevel1;
 }
 
 Result<Version> validateCapabilitiesOperandPerformance(
@@ -311,7 +261,7 @@ Result<Version> validateCapabilitiesOperandPerformanceTable(
     // version. If an OperandType does not exist in the lower version being converted to, that
     // OperandPerformance will be dropped.
     NN_TRY(validateVector(operandPerformances.asVector(), validateCapabilitiesOperandPerformance));
-    return Version::ANDROID_OC_MR1;
+    return kVersionFeatureLevel1;
 }
 
 Result<Version> validateCapabilities(const Capabilities& capabilities) {
@@ -334,12 +284,12 @@ Result<Version> validateCapabilities(const Capabilities& capabilities) {
 
 Result<Version> validateExtensionOperandTypeInformation(
         const Extension::OperandTypeInformation& operandTypeInformation) {
-    NN_VALIDATE_GT(operandTypeInformation.byteSize, 0u);
-    return Version::ANDROID_Q;
+    NN_RET_CHECK_GT(operandTypeInformation.byteSize, 0u);
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateExtension(const Extension& extension) {
-    NN_VALIDATE(isValidExtensionName(extension.name));
+    NN_RET_CHECK(isValidExtensionName(extension.name));
 
     // Verify all OperandTypeInformations have unique types.
     std::vector<uint16_t> types;
@@ -351,9 +301,9 @@ Result<Version> validateExtension(const Extension& extension) {
                    });
     std::sort(types.begin(), types.end());
     const auto iter = std::adjacent_find(types.begin(), types.end());
-    NN_VALIDATE(iter == types.end()) << "Extension has duplicate type " << *iter;
+    NN_RET_CHECK(iter == types.end()) << "Extension has duplicate type " << *iter;
 
-    return combineVersions(Version::ANDROID_Q,
+    return combineVersions(kVersionFeatureLevel3,
                            NN_TRY(validateVector(extension.operandTypes,
                                                  validateExtensionOperandTypeInformation)));
 }
@@ -369,7 +319,7 @@ Result<Version> validateExtensions(const std::vector<Extension>& extensions) {
     std::sort(names.begin(), names.end(), std::less<std::string>{});
     const auto nameIter =
             std::adjacent_find(names.begin(), names.end(), std::equal_to<std::string>{});
-    NN_VALIDATE(nameIter == names.end())
+    NN_RET_CHECK(nameIter == names.end())
             << "Two or more extensions have the duplicate name " << nameIter->get();
 
     return version;
@@ -388,68 +338,68 @@ Result<Version> validateOperandDataLocation(
         const std::vector<Model::Subgraph>& subgraphs,
         std::vector<std::optional<Version>>* subgraphVersionCache) {
     const DataLocation& location = operand.location;
-    NN_VALIDATE_EQ(location.padding, 0u)
+    NN_RET_CHECK_EQ(location.padding, 0u)
             << "DataLocation with a non-zero padding used in Model: " << location.padding;
     switch (operand.lifetime) {
         case Operand::LifeTime::CONSTANT_COPY:
-            NN_VALIDATE(location.pointer == kNullptrVariant)
+            NN_RET_CHECK(location.pointer == kNullptrVariant)
                     << "CONSTANT_COPY with a non-null pointer";
-            NN_VALIDATE_EQ(location.poolIndex, 0u)
+            NN_RET_CHECK_EQ(location.poolIndex, 0u)
                     << "CONSTANT_COPY with a non-zero poolIndex " << location.poolIndex;
             // Do the addition using uint64_t to avoid potential wrap-around problems.
-            NN_VALIDATE_LE(static_cast<uint64_t>(location.offset) + location.length,
-                           operandValuesSize)
+            NN_RET_CHECK_LE(static_cast<uint64_t>(location.offset) + location.length,
+                            operandValuesSize)
                     << "OperandValue location out of range.  Starts at " << location.offset
                     << ", length " << location.length << ", max " << operandValuesSize;
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case Operand::LifeTime::CONSTANT_REFERENCE:
-            NN_VALIDATE_LT(location.poolIndex, poolSizes.size());
+            NN_RET_CHECK_LT(location.poolIndex, poolSizes.size());
             // Do the addition using uint64_t to avoid potential wrap-around problems.
-            NN_VALIDATE_LE(static_cast<uint64_t>(location.offset) + location.length,
-                           poolSizes[location.poolIndex])
+            NN_RET_CHECK_LE(static_cast<uint64_t>(location.offset) + location.length,
+                            poolSizes[location.poolIndex])
                     << "OperandValue location out of range.  Starts at " << location.offset
                     << ", length " << location.length << ", max " << poolSizes[location.poolIndex];
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case Operand::LifeTime::TEMPORARY_VARIABLE:
         case Operand::LifeTime::SUBGRAPH_INPUT:
         case Operand::LifeTime::SUBGRAPH_OUTPUT:
         case Operand::LifeTime::NO_VALUE:
-            NN_VALIDATE(location.pointer == kNullptrVariant)
+            NN_RET_CHECK(location.pointer == kNullptrVariant)
                     << "Unexpected pointer value for operand of lifetime " << operand.lifetime;
-            NN_VALIDATE_EQ(location.poolIndex, 0u)
+            NN_RET_CHECK_EQ(location.poolIndex, 0u)
                     << "Unexpected poolIndex " << location.poolIndex << " for operand of lifetime "
                     << operand.lifetime;
-            NN_VALIDATE_EQ(location.offset, 0u) << "Unexpected offset " << location.offset
-                                                << " for operand of lifetime " << operand.lifetime;
-            NN_VALIDATE_EQ(location.length, 0u) << "Unexpected length " << location.length
-                                                << " for operand of lifetime " << operand.lifetime;
-            return Version::ANDROID_OC_MR1;
+            NN_RET_CHECK_EQ(location.offset, 0u) << "Unexpected offset " << location.offset
+                                                 << " for operand of lifetime " << operand.lifetime;
+            NN_RET_CHECK_EQ(location.length, 0u) << "Unexpected length " << location.length
+                                                 << " for operand of lifetime " << operand.lifetime;
+            return kVersionFeatureLevel1;
         case Operand::LifeTime::SUBGRAPH: {
-            NN_VALIDATE(location.pointer == kNullptrVariant) << "SUBGRAPH with a non-null pointer";
-            NN_VALIDATE_EQ(location.poolIndex, 0u)
+            NN_RET_CHECK(location.pointer == kNullptrVariant) << "SUBGRAPH with a non-null pointer";
+            NN_RET_CHECK_EQ(location.poolIndex, 0u)
                     << "SUBGRAPH with a non-zero poolIndex " << location.poolIndex;
-            NN_VALIDATE_LT(location.offset, subgraphs.size())
+            NN_RET_CHECK_LT(location.offset, subgraphs.size())
                     << "Subgraph index out of range: " << location.offset
                     << " >= " << subgraphs.size();
-            NN_VALIDATE_EQ(location.length, 0u)
+            NN_RET_CHECK_EQ(location.length, 0u)
                     << "SUBGRAPH with a non-zero length " << location.length;
             const auto version = NN_TRY(validateModelSubgraph(
                     subgraphs[location.offset], location.offset, operandValuesSize, poolSizes,
                     subgraphs, subgraphVersionCache));
-            return combineVersions(version, Version::ANDROID_R);
+            return combineVersions(version, kVersionFeatureLevel4);
         }
         case Operand::LifeTime::POINTER: {
             const bool nonNull =
                     std::visit([](auto* ptr) { return ptr != nullptr; }, location.pointer);
-            NN_VALIDATE(nonNull) << "POINTER with a null pointer";
-            NN_VALIDATE_EQ(location.poolIndex, 0u)
+            NN_RET_CHECK(nonNull) << "POINTER with a null pointer";
+            NN_RET_CHECK_EQ(location.poolIndex, 0u)
                     << "POINTER with a non-zero poolIndex " << location.poolIndex;
-            NN_VALIDATE_EQ(location.offset, 0u)
+            NN_RET_CHECK_EQ(location.offset, 0u)
                     << "POINTER with a non-zero offset " << location.offset;
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
     }
-    NN_VALIDATE_FAIL() << "Invalid Operand::LifeTime " << operand.lifetime;
+    NN_RET_CHECK_FAIL() << "Invalid Operand::LifeTime " << operand.lifetime;
 }
 
 Result<Version> validateOperandDimensions(const Operand& operand) {
@@ -461,9 +411,9 @@ Result<Version> validateOperandDimensions(const Operand& operand) {
         case OperandType::FLOAT16:
         case OperandType::SUBGRAPH:
         case OperandType::OEM:
-            NN_VALIDATE(operand.dimensions.empty())
+            NN_RET_CHECK(operand.dimensions.empty())
                     << "Scalar data has dimensions of rank " << operand.dimensions.size();
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_FLOAT32:
         case OperandType::TENSOR_INT32:
         case OperandType::TENSOR_QUANT8_ASYMM:
@@ -478,27 +428,27 @@ Result<Version> validateOperandDimensions(const Operand& operand) {
             if (operand.lifetime == Operand::LifeTime::CONSTANT_COPY ||
                 operand.lifetime == Operand::LifeTime::CONSTANT_REFERENCE ||
                 operand.lifetime == Operand::LifeTime::POINTER) {
-                NN_VALIDATE(!operand.dimensions.empty())
+                NN_RET_CHECK(!operand.dimensions.empty())
                         << "Tensor has lifetime of " << operand.lifetime
                         << " but dimensions of rank 0";
                 const auto size = getNonExtensionSize(operand);
-                NN_VALIDATE(size.has_value()) << "Tensor dimensions overflow";
-                NN_VALIDATE_NE(size.value(), 0u) << "Tensor has at least one unknown dimension";
+                NN_RET_CHECK(size.has_value()) << "Tensor dimensions overflow";
+                NN_RET_CHECK_NE(size.value(), 0u) << "Tensor has at least one unknown dimension";
             }
             // TODO(b/165152547): aren't NO_VALUE arguments allowed to be .empty() even before
             // Android Q?
             if (operand.dimensions.empty()) {
                 // Unspecified rank was added in Android Q.
-                return Version::ANDROID_Q;
+                return kVersionFeatureLevel3;
             }
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
     }
     if (isExtension(operand.type)) {
         // Extension types were added in Android Q.
-        return Version::ANDROID_Q;
+        return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
+    NN_RET_CHECK_FAIL() << "Invalid OperandType " << operand.type;
 }
 
 Result<Version> validateOperandScale(const Operand& operand) {
@@ -513,35 +463,35 @@ Result<Version> validateOperandScale(const Operand& operand) {
         case OperandType::FLOAT16:
         case OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL:
         case OperandType::SUBGRAPH:
-            NN_VALIDATE_EQ(operand.scale, 0.0f)
+            NN_RET_CHECK_EQ(operand.scale, 0.0f)
                     << "Operand of type " << operand.type << " with a non-zero scale ("
                     << operand.scale << ")";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_INT32:
             // TENSOR_INT32 may be used with or without scale, depending on the operation.
             // TODO(b/119869082) We should have a separate type for TENSOR_INT32 with a scale.
-            NN_VALIDATE_GE(operand.scale, 0.0f)
+            NN_RET_CHECK_GE(operand.scale, 0.0f)
                     << "Operand of type " << operand.type << " with a negative scale";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT8_ASYMM:
         case OperandType::TENSOR_QUANT16_SYMM:
         case OperandType::TENSOR_QUANT16_ASYMM:
         case OperandType::TENSOR_QUANT8_SYMM:
         case OperandType::TENSOR_QUANT8_ASYMM_SIGNED:
-            NN_VALIDATE_GT(operand.scale, 0.0f)
+            NN_RET_CHECK_GT(operand.scale, 0.0f)
                     << "Operand of type " << operand.type << " with a non-positive scale";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::OEM:
         case OperandType::TENSOR_OEM_BYTE:
             // No validation for OEM types.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
     if (isExtension(operand.type)) {
-        NN_VALIDATE_EQ(operand.scale, 0.0f) << "Operand of type " << operand.type
-                                            << " with a non-zero scale (" << operand.scale << ")";
-        return Version::ANDROID_Q;
+        NN_RET_CHECK_EQ(operand.scale, 0.0f) << "Operand of type " << operand.type
+                                             << " with a non-zero scale (" << operand.scale << ")";
+        return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
+    NN_RET_CHECK_FAIL() << "Invalid OperandType " << operand.type;
 }
 
 Result<Version> validateOperandZeroPoint(const Operand& operand) {
@@ -558,41 +508,41 @@ Result<Version> validateOperandZeroPoint(const Operand& operand) {
         case OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL:
         case OperandType::TENSOR_QUANT8_SYMM:
         case OperandType::SUBGRAPH:
-            NN_VALIDATE_EQ(operand.zeroPoint, 0)
+            NN_RET_CHECK_EQ(operand.zeroPoint, 0)
                     << "Operand of type " << operand.type << " with a non-zero zeroPoint "
                     << operand.zeroPoint;
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT8_ASYMM:
-            NN_VALIDATE(operand.zeroPoint >= 0 && operand.zeroPoint <= 255)
+            NN_RET_CHECK(operand.zeroPoint >= 0 && operand.zeroPoint <= 255)
                     << "Operand of type " << operand.type << " with an invalid zeroPoint "
                     << operand.zeroPoint << ", must be in range [0, 255]";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT8_ASYMM_SIGNED:
-            NN_VALIDATE(operand.zeroPoint >= -128 && operand.zeroPoint <= 127)
+            NN_RET_CHECK(operand.zeroPoint >= -128 && operand.zeroPoint <= 127)
                     << "Operand of type " << operand.type << " with an invalid zeroPoint "
                     << operand.zeroPoint << ", must be in range [-128, 127]";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT16_ASYMM:
-            NN_VALIDATE(operand.zeroPoint >= 0 && operand.zeroPoint <= 65535)
+            NN_RET_CHECK(operand.zeroPoint >= 0 && operand.zeroPoint <= 65535)
                     << "Operand of type " << operand.type << " with an invalid zeroPoint "
                     << operand.zeroPoint << ", must be in range [0, 65535]";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT16_SYMM:
-            NN_VALIDATE_EQ(operand.zeroPoint, 0)
+            NN_RET_CHECK_EQ(operand.zeroPoint, 0)
                     << "Operand of type " << operand.type << " with a non-zero zeroPoint "
                     << operand.zeroPoint;
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::OEM:
         case OperandType::TENSOR_OEM_BYTE:
             // No validation for OEM types.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
     if (isExtension(operand.type)) {
-        NN_VALIDATE_EQ(operand.zeroPoint, 0) << "Operand of type " << operand.type
-                                             << " with a non-zero zeroPoint " << operand.zeroPoint;
-        return Version::ANDROID_Q;
+        NN_RET_CHECK_EQ(operand.zeroPoint, 0) << "Operand of type " << operand.type
+                                              << " with a non-zero zeroPoint " << operand.zeroPoint;
+        return kVersionFeatureLevel3;
     }
-    NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
+    NN_RET_CHECK_FAIL() << "Invalid OperandType " << operand.type;
 }
 
 Result<Version> validateOperandExtraParams(const Operand& operand) {
@@ -612,12 +562,12 @@ Result<Version> validateOperandExtraParams(const Operand& operand) {
         case OperandType::TENSOR_QUANT8_SYMM:
         case OperandType::TENSOR_QUANT8_ASYMM_SIGNED:
         case OperandType::SUBGRAPH:
-            NN_VALIDATE(std::holds_alternative<Operand::NoParams>(operand.extraParams))
+            NN_RET_CHECK(std::holds_alternative<Operand::NoParams>(operand.extraParams))
                     << "Operand of type " << operand.type
                     << " has extraParams when there must be none";
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL: {
-            NN_VALIDATE(
+            NN_RET_CHECK(
                     std::holds_alternative<Operand::SymmPerChannelQuantParams>(operand.extraParams))
                     << "Operand of type " << operand.type
                     << " without a Channel Quantization params";
@@ -625,38 +575,38 @@ Result<Version> validateOperandExtraParams(const Operand& operand) {
                     std::get<Operand::SymmPerChannelQuantParams>(operand.extraParams);
 
             const size_t count = operand.dimensions.size();
-            NN_VALIDATE_LT(channelQuant.channelDim, count)
+            NN_RET_CHECK_LT(channelQuant.channelDim, count)
                     << "Operand of type " << operand.type
                     << " with an invalid channelQuant.channelDim " << channelQuant.channelDim
                     << ", must be valid dimension index in range [0, " << count << ")";
             const uint32_t expected = operand.dimensions[channelQuant.channelDim];
-            NN_VALIDATE_EQ(channelQuant.scales.size(), expected)
+            NN_RET_CHECK_EQ(channelQuant.scales.size(), expected)
                     << "Operand of type " << operand.type << " with a wrong-sized scales, expected "
                     << expected << " was " << channelQuant.scales.size();
-            NN_VALIDATE_NE(expected, 0u)
+            NN_RET_CHECK_NE(expected, 0u)
                     << "Operand of type " << operand.type << " channel dimension "
                     << channelQuant.channelDim << " is underspecified (can't be 0)";
             for (uint32_t i = 0; i < expected; ++i) {
-                NN_VALIDATE_GT(channelQuant.scales[i], 0.0f)
+                NN_RET_CHECK_GT(channelQuant.scales[i], 0.0f)
                         << "Operand of type " << operand.type
                         << " with a non-positive value in scales[" << i
                         << "]=" << channelQuant.scales[i];
             }
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         }
         case OperandType::OEM:
         case OperandType::TENSOR_OEM_BYTE:
             // No validation for OEM types.
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
     }
     if (isExtension(operand.type)) {
-        NN_VALIDATE(std::holds_alternative<Operand::NoParams>(operand.extraParams) ||
-                    std::holds_alternative<Operand::ExtensionParams>(operand.extraParams))
+        NN_RET_CHECK(std::holds_alternative<Operand::NoParams>(operand.extraParams) ||
+                     std::holds_alternative<Operand::ExtensionParams>(operand.extraParams))
                 << "Extension operand of type " << operand.type
                 << " must not have SymmPerChannelQuant extraParams";
-        return Version::ANDROID_OC_MR1;
+        return kVersionFeatureLevel1;
     }
-    NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
+    NN_RET_CHECK_FAIL() << "Invalid OperandType " << operand.type;
 }
 
 Result<Version> validateOperand(const Operand& operand, size_t operandValuesSize,
@@ -681,7 +631,7 @@ Result<Version> validateOperand(const Operand& operand, size_t operandValuesSize
         if (!isExtension(operand.type) && operand.type != OperandType::OEM &&
             operand.type != OperandType::TENSOR_OEM_BYTE) {
             const auto expectedLength = getNonExtensionSize(operand).value();
-            NN_VALIDATE_EQ(operand.location.length, expectedLength)
+            NN_RET_CHECK_EQ(operand.location.length, expectedLength)
                     << "For operand " << operand.type << " expected a size of " << expectedLength
                     << " but got " << operand.location.length;
         }
@@ -716,7 +666,7 @@ Result<Version> validateOperations(const std::vector<Operation>& operations,
                                    const std::vector<Operand>& operands,
                                    const std::vector<Version>& operandVersions,
                                    const std::vector<Model::Subgraph>& subgraphs) {
-    auto version = Version::ANDROID_OC_MR1;
+    auto version = kVersionFeatureLevel1;
     for (size_t i = 0; i < operations.size(); ++i) {
         auto result = validateOperationIncludingOperandVersions(operations[i], operands,
                                                                 operandVersions, subgraphs);
@@ -729,51 +679,51 @@ Result<Version> validateOperations(const std::vector<Operation>& operations,
 }
 
 Result<Version> validateUnknownHandle(const Memory::Unknown::Handle& handle) {
-    NN_VALIDATE(std::all_of(handle.fds.begin(), handle.fds.end(),
-                            [](const base::unique_fd& fd) { return fd.ok(); }));
-    return Version::ANDROID_Q;
+    NN_RET_CHECK(std::all_of(handle.fds.begin(), handle.fds.end(),
+                             [](const base::unique_fd& fd) { return fd.ok(); }));
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateHandle(const Handle& handle) {
-    NN_VALIDATE(handle.ok());
-    return Version::ANDROID_Q;
+    NN_RET_CHECK(handle.ok());
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateSharedHandle(const SharedHandle& handle) {
-    NN_VALIDATE(handle != nullptr);
+    NN_RET_CHECK(handle != nullptr);
     return validateHandle(*handle);
 }
 
 Result<Version> validateMemory(const Memory::Ashmem& memory) {
-    NN_VALIDATE(memory.fd.ok());
-    NN_VALIDATE_NE(memory.size, 0u);
-    return Version::ANDROID_OC_MR1;
+    NN_RET_CHECK(memory.fd.ok());
+    NN_RET_CHECK_NE(memory.size, 0u);
+    return kVersionFeatureLevel1;
 }
 
 Result<Version> validateMemory(const Memory::Fd& memory) {
-    NN_VALIDATE(memory.fd.ok());
-    NN_VALIDATE_NE(memory.size, 0u);
+    NN_RET_CHECK(memory.fd.ok());
+    NN_RET_CHECK_NE(memory.size, 0u);
 
     // `prot` is allowed to be either PROT_NONE (which has a value of 0) or the bitwise OR of either
     // PROT_READ or PROT_WRITE. If any other bits are set, the `prot` field is invalid.
     constexpr int kAllowedBits = PROT_READ | PROT_WRITE;
-    NN_VALIDATE_EQ(memory.prot & ~kAllowedBits, 0);
+    NN_RET_CHECK_EQ(memory.prot & ~kAllowedBits, 0);
 
-    return Version::ANDROID_OC_MR1;
+    return kVersionFeatureLevel1;
 }
 
 Result<Version> validateMemory(const Memory::HardwareBuffer& memory) {
-    NN_VALIDATE(memory.handle.get() != nullptr);
-    return Version::ANDROID_Q;
+    NN_RET_CHECK(memory.handle.get() != nullptr);
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateMemory(const Memory::Unknown& memory) {
     NN_TRY(validateUnknownHandle(memory.handle));
-    return Version::ANDROID_Q;
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateSharedMemory(const SharedMemory& memory) {
-    NN_VALIDATE(memory != nullptr);
+    NN_RET_CHECK(memory != nullptr);
     return std::visit([](const auto& x) { return validateMemory(x); }, memory->handle);
 }
 
@@ -782,11 +732,11 @@ Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& inde
                                                Operand::LifeTime lifetime) {
     const size_t operandCount = operands.size();
     for (uint32_t i : indexes) {
-        NN_VALIDATE_LT(i, operandCount)
+        NN_RET_CHECK_LT(i, operandCount)
                 << "Model " << lifetime << " input or output index out of range: " << i << "/"
                 << operandCount;
         const Operand& operand = operands[i];
-        NN_VALIDATE_EQ(operand.lifetime, lifetime)
+        NN_RET_CHECK_EQ(operand.lifetime, lifetime)
                 << "Model " << lifetime << " operand " << i << " has lifetime of "
                 << operand.lifetime << " instead of the expected " << lifetime;
     }
@@ -794,7 +744,7 @@ Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& inde
     std::vector<uint32_t> sortedIndexes = indexes;
     std::sort(sortedIndexes.begin(), sortedIndexes.end());
     const auto iter = std::adjacent_find(sortedIndexes.begin(), sortedIndexes.end());
-    NN_VALIDATE(iter == sortedIndexes.end())
+    NN_RET_CHECK(iter == sortedIndexes.end())
             << "Model input or output occurs multiple times: " << *iter;
 
     for (size_t i = 0; i < operands.size(); ++i) {
@@ -802,7 +752,7 @@ Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& inde
             const auto containsIndex = [&sortedIndexes](size_t index) {
                 return binary_search(sortedIndexes.begin(), sortedIndexes.end(), index);
             };
-            NN_VALIDATE(containsIndex(i))
+            NN_RET_CHECK(containsIndex(i))
                     << "Operand " << i << " marked as " << lifetime
                     << " but is not included in Model input or output indexes";
         }
@@ -832,8 +782,9 @@ Result<void> validateExecutionOrder(const Model::Subgraph& subgraph) {
 
         for (size_t j = 0; j < operation.inputs.size(); ++j) {
             const uint32_t k = operation.inputs[j];
-            NN_VALIDATE(operandValueKnown[k]) << "Operation " << i << " input " << j << " (operand "
-                                              << k << ") is read before it is written";
+            NN_RET_CHECK(operandValueKnown[k])
+                    << "Operation " << i << " input " << j << " (operand " << k
+                    << ") is read before it is written";
         }
 
         for (size_t j = 0; j < operation.outputs.size(); ++j) {
@@ -841,15 +792,16 @@ Result<void> validateExecutionOrder(const Model::Subgraph& subgraph) {
             // Assuming validateOperations() has not returned an error, we know that this output is
             // TEMPORARY_VARIABLE or MODEL_OUTPUT, and so the only way operandValueKnown[k] can be
             // true is if we've already seen a writer for this operand.
-            NN_VALIDATE(!operandValueKnown[k]) << "Operation " << i << " output " << j
-                                               << " (operand " << k << ") has already been written";
+            NN_RET_CHECK(!operandValueKnown[k])
+                    << "Operation " << i << " output " << j << " (operand " << k
+                    << ") has already been written";
             operandValueKnown[k] = true;
         }
     }
 
     // Verify all operands are written.
     for (size_t i = 0; i < subgraph.operands.size(); ++i) {
-        NN_VALIDATE(operandValueKnown[i]) << "Operand " << i << " is never written";
+        NN_RET_CHECK(operandValueKnown[i]) << "Operand " << i << " is never written";
     }
 
     // TODO(b/77871786): verify that every operation has at least one output operand that is read?
@@ -880,11 +832,11 @@ Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph,
         }
     }
 
-    NN_VALIDATE(!subgraph.operands.empty());
-    NN_VALIDATE(!subgraph.operations.empty());
+    NN_RET_CHECK(!subgraph.operands.empty());
+    NN_RET_CHECK(!subgraph.operations.empty());
     // TODO(b/173780642): Clarify whether subgraphs with no inputs or outputs are valid.
-    // NN_VALIDATE(!subgraph.inputIndexes.empty());
-    // NN_VALIDATE(!subgraph.outputIndexes.empty());
+    // NN_RET_CHECK(!subgraph.inputIndexes.empty());
+    // NN_RET_CHECK(!subgraph.outputIndexes.empty());
 
     const auto operandVersions = NN_TRY(validateOperands(
             subgraph.operands, operandValuesSize, poolSizes, referenced, subgraphVersionCache));
@@ -913,7 +865,7 @@ Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph,
 Result<Version> validateModelExtensionNamesAndPrefixes(
         const std::vector<Model::ExtensionNameAndPrefix>& extensionNamesAndPrefixes) {
     for (const auto& extensionNameAndPrefix : extensionNamesAndPrefixes) {
-        NN_VALIDATE(isValidExtensionName(extensionNameAndPrefix.name));
+        NN_RET_CHECK(isValidExtensionName(extensionNameAndPrefix.name));
     }
 
     std::vector<std::reference_wrapper<const std::string>> names;
@@ -926,7 +878,7 @@ Result<Version> validateModelExtensionNamesAndPrefixes(
     std::sort(names.begin(), names.end(), std::less<std::string>{});
     const auto nameIter =
             std::adjacent_find(names.begin(), names.end(), std::equal_to<std::string>{});
-    NN_VALIDATE(nameIter == names.end())
+    NN_RET_CHECK(nameIter == names.end())
             << "ExtensionNamesAndPrefixes has duplicate name " << nameIter->get();
 
     std::vector<uint16_t> types;
@@ -938,11 +890,11 @@ Result<Version> validateModelExtensionNamesAndPrefixes(
                    });
     std::sort(types.begin(), types.end());
     const auto typeIter = std::adjacent_find(types.begin(), types.end());
-    NN_VALIDATE(typeIter == types.end())
+    NN_RET_CHECK(typeIter == types.end())
             << "ExtensionNamesAndPrefixes has duplicate type " << *typeIter;
 
     const bool hasExtensions = !extensionNamesAndPrefixes.empty();
-    return hasExtensions ? Version::ANDROID_Q : Version::ANDROID_OC_MR1;
+    return hasExtensions ? kVersionFeatureLevel3 : kVersionFeatureLevel1;
 }
 
 // Makes sure the model does not contain subgraph reference cycles.
@@ -972,7 +924,7 @@ Result<void> checkNoReferenceCycles(const std::vector<Model::Subgraph>& referenc
     // and verify that all subgraphs this subgraph references do not contain cycles. The current
     // subgraph is removed from the path only after all subgraphs this subgraph references have been
     // checked.
-    NN_VALIDATE((*path)[subgraphIndex] == false) << "Model contains a circular subgraph reference";
+    NN_RET_CHECK((*path)[subgraphIndex] == false) << "Model contains a circular subgraph reference";
     (*path)[subgraphIndex] = true;
     for (const Operand& operand : subgraph.operands) {
         if (operand.lifetime == Operand::LifeTime::SUBGRAPH) {
@@ -1009,7 +961,7 @@ Result<Version> validateModel(const Model& model) {
     // Referenced models were introduced in Android R.
     const bool hasReferencedModels = !model.referenced.empty();
     const auto referenceModelVersion =
-            hasReferencedModels ? Version::ANDROID_R : Version::ANDROID_OC_MR1;
+            hasReferencedModels ? kVersionFeatureLevel4 : kVersionFeatureLevel1;
     version = combineVersions(version, referenceModelVersion);
 
     // Ensure that there are no cycles formed by the subgraphs.
@@ -1039,13 +991,13 @@ Result<Version> validateModel(const Model& model) {
 
 Result<Version> validateBufferDesc(const BufferDesc& bufferDesc) {
     // An empty BufferDesc is the default value, so it is implicitly valid for all versions.
-    return bufferDesc.dimensions.empty() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
+    return bufferDesc.dimensions.empty() ? kVersionFeatureLevel1 : kVersionFeatureLevel4;
 }
 
 Result<Version> validateBufferRole(const BufferRole& bufferRole) {
-    NN_VALIDATE_GT(bufferRole.probability, 0.0f);
-    NN_VALIDATE_LE(bufferRole.probability, 1.0f);
-    return Version::ANDROID_R;
+    NN_RET_CHECK_GT(bufferRole.probability, 0.0f);
+    NN_RET_CHECK_LE(bufferRole.probability, 1.0f);
+    return kVersionFeatureLevel4;
 }
 
 Result<Version> validateRequestArgument(const Request::Argument& requestArgument,
@@ -1056,51 +1008,51 @@ Result<Version> validateRequestArgument(const Request::Argument& requestArgument
 
     switch (lifetime) {
         case Request::Argument::LifeTime::POOL: {
-            NN_VALIDATE(location.pointer == kNullptrVariant);
-            NN_VALIDATE_LT(location.poolIndex, memorySizes.size());
+            NN_RET_CHECK(location.pointer == kNullptrVariant);
+            NN_RET_CHECK_LT(location.poolIndex, memorySizes.size());
             // Do the addition using uint64_t to avoid potential wrap-around problems.
             const auto lastPosition =
                     static_cast<uint64_t>(location.offset) + location.length + location.padding;
             const auto memorySize = memorySizes[location.poolIndex];
-            NN_VALIDATE_LE(lastPosition, memorySize);
+            NN_RET_CHECK_LE(lastPosition, memorySize);
             if (memorySize > 0) {
                 // Must specify a positive length if the memory pool has a known size.
-                NN_VALIDATE_GT(location.length, 0u);
+                NN_RET_CHECK_GT(location.length, 0u);
             }
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
         case Request::Argument::LifeTime::NO_VALUE:
-            NN_VALIDATE(location.pointer == kNullptrVariant);
-            NN_VALIDATE_EQ(location.poolIndex, 0u);
-            NN_VALIDATE_EQ(location.offset, 0u);
-            NN_VALIDATE_EQ(location.length, 0u);
-            NN_VALIDATE_EQ(location.padding, 0u);
-            NN_VALIDATE(dimensions.empty());
-            return Version::ANDROID_OC_MR1;
+            NN_RET_CHECK(location.pointer == kNullptrVariant);
+            NN_RET_CHECK_EQ(location.poolIndex, 0u);
+            NN_RET_CHECK_EQ(location.offset, 0u);
+            NN_RET_CHECK_EQ(location.length, 0u);
+            NN_RET_CHECK_EQ(location.padding, 0u);
+            NN_RET_CHECK(dimensions.empty());
+            return kVersionFeatureLevel1;
         case Request::Argument::LifeTime::POINTER: {
             const bool isNullptr =
                     std::visit([](auto ptr) { return ptr == nullptr; }, location.pointer);
-            NN_VALIDATE(!isNullptr);
-            NN_VALIDATE_EQ(location.poolIndex, 0u);
-            NN_VALIDATE_EQ(location.offset, 0u);
-            NN_VALIDATE_NE(location.length, 0u);
+            NN_RET_CHECK(!isNullptr);
+            NN_RET_CHECK_EQ(location.poolIndex, 0u);
+            NN_RET_CHECK_EQ(location.offset, 0u);
+            NN_RET_CHECK_NE(location.length, 0u);
             if (isOutput) {
-                NN_VALIDATE(std::holds_alternative<void*>(location.pointer));
+                NN_RET_CHECK(std::holds_alternative<void*>(location.pointer));
             }
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
     }
-    NN_VALIDATE_FAIL() << "Invalid Request::Argument::LifeTime " << lifetime;
+    NN_RET_CHECK_FAIL() << "Invalid Request::Argument::LifeTime " << lifetime;
 }
 
 Result<Version> validateRequestMemoryPool(const Request::MemoryPool& memoryPool) {
     if (std::holds_alternative<Request::MemoryDomainToken>(memoryPool)) {
-        NN_VALIDATE(std::get<Request::MemoryDomainToken>(memoryPool) != kInvalidMemoryDomainToken);
-        return Version::ANDROID_R;
+        NN_RET_CHECK(std::get<Request::MemoryDomainToken>(memoryPool) != kInvalidMemoryDomainToken);
+        return kVersionFeatureLevel4;
     }
     if (std::holds_alternative<SharedBuffer>(memoryPool)) {
-        NN_VALIDATE(std::get<SharedBuffer>(memoryPool) != nullptr);
-        return Version::ANDROID_R;
+        NN_RET_CHECK(std::get<SharedBuffer>(memoryPool) != nullptr);
+        return kVersionFeatureLevel4;
     }
     return validateSharedMemory(std::get<SharedMemory>(memoryPool));
 }
@@ -1139,44 +1091,44 @@ Result<Version> validateRequest(const Request& request) {
 
 Result<Version> validateOptionalTimePoint(const OptionalTimePoint& optionalTimePoint) {
     if (optionalTimePoint.has_value()) {
-        NN_VALIDATE_GE(optionalTimePoint->time_since_epoch().count(), 0);
+        NN_RET_CHECK_GE(optionalTimePoint->time_since_epoch().count(), 0);
     }
     // An omitted time point is the default value, so it is implicitly valid for all versions.
-    return !optionalTimePoint.has_value() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
+    return !optionalTimePoint.has_value() ? kVersionFeatureLevel1 : kVersionFeatureLevel4;
 }
 
 Result<Version> validateOptionalTimeoutDuration(const OptionalDuration& optionalTimeoutDuration) {
     if (optionalTimeoutDuration.has_value()) {
-        NN_VALIDATE_GE(optionalTimeoutDuration->count(), 0);
+        NN_RET_CHECK_GE(optionalTimeoutDuration->count(), 0);
     }
     // An omitted duration is the default value, so it is implicitly valid for all versions.
-    return !optionalTimeoutDuration.has_value() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
+    return !optionalTimeoutDuration.has_value() ? kVersionFeatureLevel1 : kVersionFeatureLevel4;
 }
 
 Result<Version> validateCacheToken(const CacheToken& cacheToken) {
     // A CacheToken of 0 is the default value, so it is implicitly valid for all versions.
     constexpr auto kDefaultCacheToken = CacheToken{};
-    return cacheToken == kDefaultCacheToken ? Version::ANDROID_OC_MR1 : Version::ANDROID_Q;
+    return cacheToken == kDefaultCacheToken ? kVersionFeatureLevel1 : kVersionFeatureLevel3;
 }
 
 Result<Version> validateSyncFence(const SyncFence& syncFence) {
     // The absence of a sync fence is implicitly valid for all versions.
     if (!syncFence.hasFd()) {
-        return Version::ANDROID_OC_MR1;
+        return kVersionFeatureLevel1;
     }
-    NN_VALIDATE_GE(syncFence.getFd(), 0);
-    return Version::ANDROID_R;
+    NN_RET_CHECK_GE(syncFence.getFd(), 0);
+    return kVersionFeatureLevel4;
 }
 
 Result<Version> validateRequestArgumentsForModel(
         const std::vector<Request::Argument>& requestArguments,
         const std::vector<uint32_t>& operandIndexes, const std::vector<Operand>& operands,
         bool isOutput, bool allowUnspecifiedOutput) {
-    auto version = Version::ANDROID_OC_MR1;
+    auto version = kVersionFeatureLevel1;
     // The request should specify as many arguments as were described in the model.
     const std::string_view type = isOutput ? "output" : "input";
     const size_t requestArgumentCount = requestArguments.size();
-    NN_VALIDATE_EQ(requestArgumentCount, operandIndexes.size())
+    NN_RET_CHECK_EQ(requestArgumentCount, operandIndexes.size())
             << "Request specifies " << requestArgumentCount << " " << type << "s but the model has "
             << operandIndexes.size();
     for (size_t requestArgumentIndex = 0; requestArgumentIndex < requestArgumentCount;
@@ -1197,42 +1149,42 @@ Result<Version> validateRequestArgumentsForModel(
                 // extension operand type.
                 if (!isExtensionType && !isNonExtensionScalar(operand.type)) {
                     if (modelRank <= 0) {
-                        NN_VALIDATE(isOutput)
+                        NN_RET_CHECK(isOutput)
                                 << "Model has unknown input rank but the request does not "
                                    "specify the rank.";
-                        NN_VALIDATE(allowUnspecifiedOutput)
+                        NN_RET_CHECK(allowUnspecifiedOutput)
                                 << "Model has unknown output rank and request does not specify it.";
                         // Unspecified output dimensions introduced in Android Q.
-                        version = combineVersions(version, Version::ANDROID_Q);
+                        version = combineVersions(version, kVersionFeatureLevel3);
                     }
                 }
                 // Validate that all the dimensions are specified in the model.
                 for (size_t i = 0; i < modelRank; i++) {
                     if (operand.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
+                        NN_RET_CHECK(isOutput && allowUnspecifiedOutput)
                                 << "Model has dimension " << i
                                 << " set to 0 but the request does not specify the dimension.";
                         // Unspecified output dimensions introduced in Android Q.
-                        version = combineVersions(version, Version::ANDROID_Q);
+                        version = combineVersions(version, kVersionFeatureLevel3);
                     }
                 }
             } else {
-                NN_VALIDATE(modelRank == 0 || requestRank == modelRank)
+                NN_RET_CHECK(modelRank == 0 || requestRank == modelRank)
                         << "Request " << type << " " << requestArgumentIndex
                         << " has number of dimensions (" << requestRank
                         << ") different than the model's (" << modelRank << ")";
                 for (size_t i = 0; i < requestRank; i++) {
-                    NN_VALIDATE(modelRank == 0 || operand.dimensions[i] == 0 ||
-                                requestArgument.dimensions[i] == operand.dimensions[i])
+                    NN_RET_CHECK(modelRank == 0 || operand.dimensions[i] == 0 ||
+                                 requestArgument.dimensions[i] == operand.dimensions[i])
                             << "Request " << type << " " << requestArgumentIndex
                             << " has dimension " << i << " of " << requestArgument.dimensions[i]
                             << " different than the model's " << operand.dimensions[i];
                     if (requestArgument.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
+                        NN_RET_CHECK(isOutput && allowUnspecifiedOutput)
                                 << "Request " << type << " " << requestArgumentIndex
                                 << " has dimension " << i << " of zero";
                         // Unspecified output dimensions introduced in Android Q.
-                        version = combineVersions(version, Version::ANDROID_Q);
+                        version = combineVersions(version, kVersionFeatureLevel3);
                     }
                 }
             }
@@ -1243,7 +1195,7 @@ Result<Version> validateRequestArgumentsForModel(
                         NN_TRY(combineDimensions(operand.dimensions, requestArgument.dimensions));
                 const size_t expectedLength = getNonExtensionSize(operand.type, dimensions).value();
                 if (expectedLength != 0) {
-                    NN_VALIDATE_EQ(requestArgument.location.length, expectedLength)
+                    NN_RET_CHECK_EQ(requestArgument.location.length, expectedLength)
                             << "Request " << type << " " << requestArgumentIndex
                             << " expected a size of " << expectedLength << " but got "
                             << requestArgument.location.length;
@@ -1273,38 +1225,38 @@ Result<Version> validateMemoryDescImpl(
         const std::vector<BufferRole>& inputRoles, const std::vector<BufferRole>& outputRoles,
         const std::function<const Model*(const SharedPreparedModel&)>& getModel,
         std::set<PreparedModelRole>* preparedModelRoles, Operand* combinedOperand) {
-    NN_VALIDATE(!preparedModels.empty());
-    NN_VALIDATE(!inputRoles.empty() || !outputRoles.empty());
+    NN_RET_CHECK(!preparedModels.empty());
+    NN_RET_CHECK(!inputRoles.empty() || !outputRoles.empty());
 
     std::set<PreparedModelRole> roles;
     std::vector<nn::Operand> operands;
     operands.reserve(inputRoles.size() + outputRoles.size());
     for (const auto& role : inputRoles) {
-        NN_VALIDATE_LT(role.modelIndex, preparedModels.size());
+        NN_RET_CHECK_LT(role.modelIndex, preparedModels.size());
         const auto& preparedModel = preparedModels[role.modelIndex];
-        NN_VALIDATE(preparedModel != nullptr);
+        NN_RET_CHECK(preparedModel != nullptr);
         const auto* model = getModel(preparedModel);
-        NN_VALIDATE(model != nullptr);
+        NN_RET_CHECK(model != nullptr);
         const auto& inputIndexes = model->main.inputIndexes;
-        NN_VALIDATE_LT(role.ioIndex, inputIndexes.size());
-        NN_VALIDATE_GT(role.probability, 0.0f);
-        NN_VALIDATE_LE(role.probability, 1.0f);
+        NN_RET_CHECK_LT(role.ioIndex, inputIndexes.size());
+        NN_RET_CHECK_GT(role.probability, 0.0f);
+        NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::INPUT, role.ioIndex);
-        NN_VALIDATE(success);
+        NN_RET_CHECK(success);
         operands.push_back(model->main.operands[inputIndexes[role.ioIndex]]);
     }
     for (const auto& role : outputRoles) {
-        NN_VALIDATE_LT(role.modelIndex, preparedModels.size());
+        NN_RET_CHECK_LT(role.modelIndex, preparedModels.size());
         const auto& preparedModel = preparedModels[role.modelIndex];
-        NN_VALIDATE(preparedModel != nullptr);
+        NN_RET_CHECK(preparedModel != nullptr);
         const auto* model = getModel(preparedModel);
-        NN_VALIDATE(model != nullptr);
+        NN_RET_CHECK(model != nullptr);
         const auto& outputIndexes = model->main.outputIndexes;
-        NN_VALIDATE_LT(role.ioIndex, outputIndexes.size());
-        NN_VALIDATE_GT(role.probability, 0.0f);
-        NN_VALIDATE_LE(role.probability, 1.0f);
+        NN_RET_CHECK_LT(role.ioIndex, outputIndexes.size());
+        NN_RET_CHECK_GT(role.probability, 0.0f);
+        NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::OUTPUT, role.ioIndex);
-        NN_VALIDATE(success);
+        NN_RET_CHECK(success);
         operands.push_back(model->main.operands[outputIndexes[role.ioIndex]]);
     }
 
@@ -1313,12 +1265,12 @@ Result<Version> validateMemoryDescImpl(
 
     Dimensions dimensions = desc.dimensions;
     for (const auto& operand : operands) {
-        NN_VALIDATE_EQ(operand.type, opType) << operand.type << " vs " << operands.front().type;
-        NN_VALIDATE_EQ(operand.scale, operands.front().scale);
-        NN_VALIDATE_EQ(operand.zeroPoint, operands.front().zeroPoint);
+        NN_RET_CHECK_EQ(operand.type, opType) << operand.type << " vs " << operands.front().type;
+        NN_RET_CHECK_EQ(operand.scale, operands.front().scale);
+        NN_RET_CHECK_EQ(operand.zeroPoint, operands.front().zeroPoint);
         // NOTE: validateMemoryDesc cannot validate extra parameters for extension operand type.
         if (!isExtension(opType)) {
-            NN_VALIDATE_EQ(operand.extraParams, operands.front().extraParams)
+            NN_RET_CHECK_EQ(operand.extraParams, operands.front().extraParams)
                     << operand.extraParams << " vs " << operands.front().extraParams;
         }
         dimensions = NN_TRY(combineDimensions(dimensions, operand.dimensions));
@@ -1326,7 +1278,7 @@ Result<Version> validateMemoryDescImpl(
 
     // NOTE: validateMemoryDesc cannot validate scalar dimensions with extension operand type.
     if (!isExtension(opType)) {
-        NN_VALIDATE(!isNonExtensionScalar(opType) || dimensions.empty())
+        NN_RET_CHECK(!isNonExtensionScalar(opType) || dimensions.empty())
                 << "invalid dimensions with scalar operand type.";
     }
 
@@ -1337,7 +1289,7 @@ Result<Version> validateMemoryDescImpl(
         *combinedOperand = operands.front();
         combinedOperand->dimensions = dimensions;
     }
-    return Version::ANDROID_R;
+    return kVersionFeatureLevel4;
 }
 
 class OperationValidationContext : public IOperationValidationContext {
@@ -1427,61 +1379,61 @@ Result<void> validateOperandSymmPerChannelQuantParamsImpl(
         const Operand& operand, const Operand::SymmPerChannelQuantParams& channelQuant,
         const char* tag) {
     if (operand.type != OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL) {
-        NN_VALIDATE_FAIL();
+        NN_RET_CHECK_FAIL();
     }
 
-    NN_VALIDATE_LT(channelQuant.channelDim, operand.dimensions.size()) << tag;
-    NN_VALIDATE(!channelQuant.scales.empty()) << tag;
-    NN_VALIDATE_EQ(channelQuant.scales.size(), operand.dimensions[channelQuant.channelDim]) << tag;
-    NN_VALIDATE_NE(operand.dimensions[channelQuant.channelDim], 0u)
+    NN_RET_CHECK_LT(channelQuant.channelDim, operand.dimensions.size()) << tag;
+    NN_RET_CHECK(!channelQuant.scales.empty()) << tag;
+    NN_RET_CHECK_EQ(channelQuant.scales.size(), operand.dimensions[channelQuant.channelDim]) << tag;
+    NN_RET_CHECK_NE(operand.dimensions[channelQuant.channelDim], 0u)
             << tag << " channel dimension " << channelQuant.channelDim << " is underspecified";
     for (uint32_t i = 0; i < operand.dimensions[channelQuant.channelDim]; i++) {
-        NN_VALIDATE_GT(channelQuant.scales[i], 0.0f) << tag << " invalid scaleArray[" << i << "]";
+        NN_RET_CHECK_GT(channelQuant.scales[i], 0.0f) << tag << " invalid scaleArray[" << i << "]";
     }
     return {};
 }
 
 Result<void> validateScalarDimensions(const Operand& type, const char* tag) {
-    NN_VALIDATE(type.dimensions.empty()) << tag << " invalid dimensions for scalar type";
+    NN_RET_CHECK(type.dimensions.empty()) << tag << " invalid dimensions for scalar type";
     return {};
 }
 
 Result<void> validateQuant8AsymmParams(const Operand& type, const char* tag) {
-    NN_VALIDATE(0 <= type.zeroPoint && type.zeroPoint <= 255)
+    NN_RET_CHECK(0 <= type.zeroPoint && type.zeroPoint <= 255)
             << tag << " invalid zeroPoint: " << type.zeroPoint;
-    NN_VALIDATE_GT(type.scale, 0.0f) << tag << " invalid scale";
+    NN_RET_CHECK_GT(type.scale, 0.0f) << tag << " invalid scale";
     return {};
 }
 
 Result<void> validateQuant8AsymmSignedParams(const Operand& type, const char* tag) {
-    NN_VALIDATE(-128 <= type.zeroPoint && type.zeroPoint <= 127)
+    NN_RET_CHECK(-128 <= type.zeroPoint && type.zeroPoint <= 127)
             << tag << " invalid zeroPoint: " << type.zeroPoint;
-    NN_VALIDATE_GT(type.scale, 0.0f) << tag << " invalid scale";
+    NN_RET_CHECK_GT(type.scale, 0.0f) << tag << " invalid scale";
     return {};
 }
 
 Result<void> validateQuant8SymmParams(const Operand& type, const char* tag) {
-    NN_VALIDATE_EQ(type.zeroPoint, 0) << tag << " invalid zeroPoint: " << type.zeroPoint;
-    NN_VALIDATE_GT(type.scale, 0.0f) << tag << " invalid scale";
+    NN_RET_CHECK_EQ(type.zeroPoint, 0) << tag << " invalid zeroPoint: " << type.zeroPoint;
+    NN_RET_CHECK_GT(type.scale, 0.0f) << tag << " invalid scale";
     return {};
 }
 
 Result<void> validateQuant16AsymmParams(const Operand& type, const char* tag) {
-    NN_VALIDATE(0 <= type.zeroPoint && type.zeroPoint <= 65535)
+    NN_RET_CHECK(0 <= type.zeroPoint && type.zeroPoint <= 65535)
             << tag << " invalid zeroPoint: " << type.zeroPoint;
-    NN_VALIDATE_GT(type.scale, 0.0f) << tag << " invalid scale";
+    NN_RET_CHECK_GT(type.scale, 0.0f) << tag << " invalid scale";
     return {};
 }
 
 Result<void> validateQuantSymmParams(const Operand& type, const char* tag) {
-    NN_VALIDATE_EQ(type.zeroPoint, 0) << tag << " zeroPoint is not zero";
-    NN_VALIDATE_GT(type.scale, 0.0f) << tag << " invalid scale";
+    NN_RET_CHECK_EQ(type.zeroPoint, 0) << tag << " zeroPoint is not zero";
+    NN_RET_CHECK_GT(type.scale, 0.0f) << tag << " invalid scale";
     return {};
 }
 
 Result<void> validateNoQuantParams(const Operand& type, const char* tag) {
-    NN_VALIDATE_EQ(type.zeroPoint, 0) << tag << " zeroPoint is not zero";
-    NN_VALIDATE_EQ(type.scale, 0.0f) << tag << " scale is not zero";
+    NN_RET_CHECK_EQ(type.zeroPoint, 0) << tag << " zeroPoint is not zero";
+    NN_RET_CHECK_EQ(type.scale, 0.0f) << tag << " scale is not zero";
     return {};
 }
 
@@ -1489,18 +1441,18 @@ Result<void> validateTensorDimensions(
         const Operand& type, const Extension::OperandTypeInformation* extensionOperandTypeInfo,
         const char* tag, bool allowPartial) {
     if (!allowPartial) {
-        NN_VALIDATE(!type.dimensions.empty()) << tag << " invalid operand dimensions";
+        NN_RET_CHECK(!type.dimensions.empty()) << tag << " invalid operand dimensions";
     }
     uint64_t size = isExtension(type.type) ? extensionOperandTypeInfo->byteSize
                                            : getNonExtensionSize(type.type);
     constexpr uint64_t kMaxSize = std::numeric_limits<uint32_t>::max();
     for (size_t i = 0; i < type.dimensions.size(); i++) {
         if (!allowPartial) {
-            NN_VALIDATE_NE(type.dimensions[i], 0u) << tag << " invalid operand dimensions";
+            NN_RET_CHECK_NE(type.dimensions[i], 0u) << tag << " invalid operand dimensions";
         }
         if (type.dimensions[i] != 0) {
             size *= type.dimensions[i];
-            NN_VALIDATE_LE(size, kMaxSize) << tag << " operand byte size exceeds " << kMaxSize;
+            NN_RET_CHECK_LE(size, kMaxSize) << tag << " operand byte size exceeds " << kMaxSize;
         }
     }
     return {};
@@ -1511,7 +1463,7 @@ Result<void> validateOperandTypeImpl(
         const Extension::OperandTypeInformation* const extensionOperandTypeInfo, const char* tag,
         bool allowPartial) {
     if (isExtension(type.type)) {
-        NN_VALIDATE(extensionOperandTypeInfo != nullptr);
+        NN_RET_CHECK(extensionOperandTypeInfo != nullptr);
         if (extensionOperandTypeInfo->isTensor) {
             NN_TRY(validateTensorDimensions(type, extensionOperandTypeInfo, tag, allowPartial));
         } else {
@@ -1520,7 +1472,7 @@ Result<void> validateOperandTypeImpl(
         return validateNoQuantParams(type, tag);
     }
 
-    NN_VALIDATE(extensionOperandTypeInfo == nullptr);
+    NN_RET_CHECK(extensionOperandTypeInfo == nullptr);
     NN_TRY(validateOperandType(type.type));
 
     if (isNonExtensionScalar(type.type)) {
@@ -1556,8 +1508,8 @@ Result<void> validateOperandTypeImpl(
 Result<void> validateOperandListImpl(const std::vector<uint32_t>& list, size_t operandCount,
                                      const char* tag) {
     for (size_t i = 0; i < list.size(); i++) {
-        NN_VALIDATE_LT(list[i], operandCount) << tag << " invalid operand index at " << i << " = "
-                                              << list[i] << ", operandCount " << operandCount;
+        NN_RET_CHECK_LT(list[i], operandCount) << tag << " invalid operand index at " << i << " = "
+                                               << list[i] << ", operandCount " << operandCount;
     }
     return {};
 }
@@ -1567,19 +1519,19 @@ Result<void> validateOperationOperandTypes(const std::vector<Operand>& operands,
                                            const std::vector<OperandType>& inExpectedTypes,
                                            const std::vector<uint32_t>& outputIndexes,
                                            const std::vector<OperandType>& outExpectedInTypes) {
-    NN_VALIDATE_EQ(inputIndexes.size(), inExpectedTypes.size())
+    NN_RET_CHECK_EQ(inputIndexes.size(), inExpectedTypes.size())
             << "Wrong operand count: expected " << inputIndexes.size() << " inputs, got "
             << inputIndexes.size() << " inputs";
-    NN_VALIDATE_EQ(outputIndexes.size(), outExpectedInTypes.size())
+    NN_RET_CHECK_EQ(outputIndexes.size(), outExpectedInTypes.size())
             << "Wrong operand count: expected " << outputIndexes.size() << " outputs, got "
             << outputIndexes.size() << " outputs";
     for (size_t i = 0; i < inputIndexes.size(); i++) {
-        NN_VALIDATE_EQ(operands[inputIndexes[i]].type, inExpectedTypes[i])
+        NN_RET_CHECK_EQ(operands[inputIndexes[i]].type, inExpectedTypes[i])
                 << "Invalid input tensor type " << operands[inputIndexes[i]].type << " for input "
                 << i << ", expected " << inExpectedTypes[i];
     }
     for (size_t i = 0; i < outputIndexes.size(); i++) {
-        NN_VALIDATE_EQ(operands[outputIndexes[i]].type, outExpectedInTypes[i])
+        NN_RET_CHECK_EQ(operands[outputIndexes[i]].type, outExpectedInTypes[i])
                 << "Invalid output tensor type " << operands[outputIndexes[i]].type << " for input "
                 << i << ", expected " << outExpectedInTypes[i];
     }
@@ -1589,9 +1541,9 @@ Result<void> validateOperationOperandTypes(const std::vector<Operand>& operands,
 
 Result<void> validateSubgraphReference(const std::vector<Model::Subgraph>& subgraphs,
                                        const Operand& modelOperand) {
-    NN_VALIDATE_EQ(modelOperand.type, OperandType::SUBGRAPH)
+    NN_RET_CHECK_EQ(modelOperand.type, OperandType::SUBGRAPH)
             << "Unexpected operand type: " << modelOperand.type;
-    NN_VALIDATE_LT(modelOperand.location.offset, subgraphs.size()) << "Invalid subgraph reference";
+    NN_RET_CHECK_LT(modelOperand.location.offset, subgraphs.size()) << "Invalid subgraph reference";
     return {};
 }
 const Model::Subgraph& getSubgraph(const std::vector<Model::Subgraph>& subgraphs,
@@ -1619,26 +1571,26 @@ const Operand& getOutputOperand(const std::vector<Model::Subgraph>& subgraphs,
 // Checks if two operands have the same types, ranks (if specified), dimensions
 // (if specified), scales, zeroPoints, and extraParams.
 Result<void> compatible(const Operand& a, const Operand& b) {
-    NN_VALIDATE_EQ(a.type, b.type) << a.type << " != " << b.type;
+    NN_RET_CHECK_EQ(a.type, b.type) << a.type << " != " << b.type;
     if (!a.dimensions.empty() && !b.dimensions.empty()) {
-        NN_VALIDATE_EQ(a.dimensions.size(), b.dimensions.size()) << "Incompatible dimensions";
+        NN_RET_CHECK_EQ(a.dimensions.size(), b.dimensions.size()) << "Incompatible dimensions";
         for (uint32_t i = 0, n = a.dimensions.size(); i < n; ++i) {
             if (a.dimensions[i] != 0 && b.dimensions[i] != 0) {
-                NN_VALIDATE_EQ(a.dimensions[i], b.dimensions[i]) << "Incompatible dimensions";
+                NN_RET_CHECK_EQ(a.dimensions[i], b.dimensions[i]) << "Incompatible dimensions";
             }
         }
     }
-    NN_VALIDATE_EQ(a.scale, b.scale);
-    NN_VALIDATE_EQ(a.zeroPoint, b.zeroPoint);
-    NN_VALIDATE_EQ(a.extraParams, b.extraParams) << a.extraParams << " != " << b.extraParams;
+    NN_RET_CHECK_EQ(a.scale, b.scale);
+    NN_RET_CHECK_EQ(a.zeroPoint, b.zeroPoint);
+    NN_RET_CHECK_EQ(a.extraParams, b.extraParams) << a.extraParams << " != " << b.extraParams;
     return {};
 }
 
 Result<void> validateConditionOperand(const Operand& operand) {
-    NN_VALIDATE_EQ(operand.type, OperandType::TENSOR_BOOL8)
+    NN_RET_CHECK_EQ(operand.type, OperandType::TENSOR_BOOL8)
             << "Unexpected condition operand type: " << operand.type;
-    NN_VALIDATE_EQ(operand.dimensions.size(), 1u) << "Condition operand must be a singleton";
-    NN_VALIDATE_EQ(operand.dimensions[0], 1u) << "Condition operand must be a singleton";
+    NN_RET_CHECK_EQ(operand.dimensions.size(), 1u) << "Condition operand must be a singleton";
+    NN_RET_CHECK_EQ(operand.dimensions[0], 1u) << "Condition operand must be a singleton";
     return {};
 }
 
@@ -1647,8 +1599,8 @@ Result<Version> validateIfOperation(const std::vector<uint32_t>& inputs,
                                     const std::vector<Operand>& operands,
                                     const std::vector<Model::Subgraph>& subgraphs) {
     namespace op = operation_if;
-    NN_VALIDATE_GE(inputs.size(), 3u) << "IF must have at least 3 inputs";
-    NN_VALIDATE_GE(outputs.size(), 1u) << "IF must have at least 1 output";
+    NN_RET_CHECK_GE(inputs.size(), 3u) << "IF must have at least 3 inputs";
+    NN_RET_CHECK_GE(outputs.size(), 1u) << "IF must have at least 1 output";
     auto validateBranchOperand = [&](const Operand& branchModelOperand) -> Result<void> {
         auto result = validateSubgraphReference(subgraphs, branchModelOperand);
         if (!result.has_value()) {
@@ -1657,8 +1609,8 @@ Result<Version> validateIfOperation(const std::vector<uint32_t>& inputs,
         }
         const uint32_t branchModelInputCount = getInputCount(subgraphs, branchModelOperand);
         const uint32_t branchModelOutputCount = getOutputCount(subgraphs, branchModelOperand);
-        NN_VALIDATE_EQ(inputs.size(), op::kFirstInput + branchModelInputCount);
-        NN_VALIDATE_EQ(outputs.size(), branchModelOutputCount);
+        NN_RET_CHECK_EQ(inputs.size(), op::kFirstInput + branchModelInputCount);
+        NN_RET_CHECK_EQ(outputs.size(), branchModelOutputCount);
         for (uint32_t i = 0; i < branchModelInputCount; ++i) {
             const Operand& innerOperand = getInputOperand(subgraphs, branchModelOperand, i);
             const Operand& outerOperand = operands[inputs[op::kFirstInput + i]];
@@ -1683,16 +1635,17 @@ Result<Version> validateIfOperation(const std::vector<uint32_t>& inputs,
     if (!result.has_value()) {
         return error() << std::move(result).error() << " for IF else model";
     }
-    return Version::ANDROID_R;
+    return kVersionFeatureLevel4;
 }
 
 Result<Version> validateControlFlowOperandUnknownSize(const Operand& operand) {
+    auto version = kVersionFeatureLevel4;
     if (!isExtension(operand.type) && getNonExtensionSize(operand).value() == 0) {
-        // 1.3 HAL (corresponding to Version::ANDROID_R) does not support CF operations with
+        // 1.3 HAL (corresponding to kVersionFeatureLevel4) does not support CF operations with
         // operands of unknown size. See http://b/132458982#comment63.
-        return getCurrentRuntimeVersion();
+        version.runtimeOnlyFeatures = true;
     }
-    return Version::ANDROID_R;
+    return version;
 }
 
 Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
@@ -1708,10 +1661,10 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
     // - the condition model has (m + k + n) inputs and 1 output.
     // - the body model has (m + k + n) inputs and (m + k) outputs.
     namespace op = operation_while;
-    NN_VALIDATE_GE(inputs.size(), 3u) << "WHILE must have at least 3 inputs";
-    NN_VALIDATE_GE(outputs.size(), 1u) << "WHILE must have at least 1 output";
+    NN_RET_CHECK_GE(inputs.size(), 3u) << "WHILE must have at least 3 inputs";
+    NN_RET_CHECK_GE(outputs.size(), 1u) << "WHILE must have at least 1 output";
     auto validateCondOperand = [&](const Operand& condModelOperand) -> Result<Version> {
-        Version version = Version::ANDROID_R;
+        Version version = kVersionFeatureLevel4;
         auto result = validateSubgraphReference(subgraphs, condModelOperand);
         if (!result.has_value()) {
             return error() << std::move(result).error()
@@ -1719,8 +1672,8 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
         }
         const uint32_t condModelInputCount = getInputCount(subgraphs, condModelOperand);
         const uint32_t condModelOutputCount = getOutputCount(subgraphs, condModelOperand);
-        NN_VALIDATE_EQ(inputs.size(), op::kFirstInput + condModelInputCount);
-        NN_VALIDATE_EQ(condModelOutputCount, 1u);
+        NN_RET_CHECK_EQ(inputs.size(), op::kFirstInput + condModelInputCount);
+        NN_RET_CHECK_EQ(condModelOutputCount, 1u);
         for (uint32_t i = 0; i < condModelInputCount; ++i) {
             const Operand& innerOperand = getInputOperand(subgraphs, condModelOperand, i);
             const Operand& outerOperand = operands[inputs[op::kFirstInput + i]];
@@ -1734,7 +1687,7 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
         return version;
     };
     auto validateBodyOperand = [&](const Operand& bodyModelOperand) -> Result<Version> {
-        Version version = Version::ANDROID_R;
+        Version version = kVersionFeatureLevel4;
         auto result = validateSubgraphReference(subgraphs, bodyModelOperand);
         if (!result.has_value()) {
             return error() << std::move(result).error()
@@ -1742,9 +1695,9 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
         }
         const uint32_t bodyModelInputCount = getInputCount(subgraphs, bodyModelOperand);
         const uint32_t bodyModelOutputCount = getOutputCount(subgraphs, bodyModelOperand);
-        NN_VALIDATE_EQ(inputs.size(), op::kFirstInput + bodyModelInputCount);
-        NN_VALIDATE_GE(bodyModelOutputCount, outputs.size());
-        NN_VALIDATE_GE(bodyModelInputCount, bodyModelOutputCount);
+        NN_RET_CHECK_EQ(inputs.size(), op::kFirstInput + bodyModelInputCount);
+        NN_RET_CHECK_GE(bodyModelOutputCount, outputs.size());
+        NN_RET_CHECK_GE(bodyModelInputCount, bodyModelOutputCount);
         const uint32_t inputOutputCount = outputs.size();
         const uint32_t stateOnlyCount = bodyModelOutputCount - inputOutputCount;
         const uint32_t inputOnlyCount = bodyModelInputCount - bodyModelOutputCount;
@@ -1800,7 +1753,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
 
     if (isExtension(opType)) {
         // There is no other validation we can do for an extension operation.
-        return Version::ANDROID_Q;
+        return kVersionFeatureLevel3;
     }
 
     auto invalidInOutNumberMessage = [opType, &inputIndexes, &outputIndexes](int expIn,
@@ -1814,49 +1767,49 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
 
     switch (opType) {
         case OperationType::OEM_OPERATION: {
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
         case OperationType::RESHAPE: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             Version version;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT32, OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT16, OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT16};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM, OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
                                    OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else if (inputType == OperandType::TENSOR_INT32) {
-                version = Version::FEATURE_LEVEL_6;
+                version = kVersionFeatureLevel6;
                 inExpectedTypes = {OperandType::TENSOR_INT32, OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_INT32};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             const auto inputRank = operands[inputIndexes[0]].dimensions.size();
-            NN_VALIDATE_LE(inputRank, 4u)
+            NN_RET_CHECK_LE(inputRank, 4u)
                     << "Unsupported input tensor rank for operation " << opType;
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::DEPTH_TO_SPACE: {
-            NN_VALIDATE((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
-                        outputIndexes.size() == 1)
+            NN_RET_CHECK((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
+                         outputIndexes.size() == 1)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 3 or 2) or output operands (" << outputIndexes.size()
                     << ", expected 1) for operation " << opType;
@@ -1865,37 +1818,37 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT32, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT16, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT16};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             if (inputIndexes.size() == 3) {
                 inExpectedTypes.push_back(OperandType::BOOL);
-                version = combineVersions(version, Version::ANDROID_Q);
+                version = combineVersions(version, kVersionFeatureLevel3);
             } else {
-                version = combineVersions(version, Version::ANDROID_OC_MR1);
+                version = combineVersions(version, kVersionFeatureLevel1);
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::SPACE_TO_DEPTH: {
-            NN_VALIDATE((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
-                        outputIndexes.size() == 1)
+            NN_RET_CHECK((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
+                         outputIndexes.size() == 1)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 3 or 2) or output operands (" << outputIndexes.size()
                     << ", expected 1) for operation " << opType;
@@ -1904,67 +1857,67 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT32, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {OperandType::TENSOR_FLOAT16, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_FLOAT16};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             if (inputIndexes.size() == 3) {
                 inExpectedTypes.push_back(OperandType::BOOL);
-                version = combineVersions(version, Version::ANDROID_Q);
+                version = combineVersions(version, kVersionFeatureLevel3);
             } else {
-                version = combineVersions(version, Version::ANDROID_OC_MR1);
+                version = combineVersions(version, kVersionFeatureLevel1);
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::EMBEDDING_LOOKUP: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[1]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT16 ||
-                        inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_INT32 ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT16 ||
+                         inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_INT32 ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
                     << "Unsupported input tensor type for operation " << opType;
             Version version;
             std::vector<OperandType> inExpectedTypes = {OperandType::TENSOR_INT32, inputType};
             std::vector<OperandType> outExpectedTypes = {inputType};
             if (inputType == OperandType::TENSOR_FLOAT16 ||
                 inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else if (inputType == OperandType::TENSOR_INT32 ||
                        inputType == OperandType::TENSOR_QUANT8_ASYMM) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             } else {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::HASHTABLE_LOOKUP: {
-            NN_VALIDATE(inputIndexes.size() == 3 && outputIndexes.size() == 2)
+            NN_RET_CHECK(inputIndexes.size() == 3 && outputIndexes.size() == 2)
                     << invalidInOutNumberMessage(3, 2);
             auto inputType = operands[inputIndexes[2]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_INT32 ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_INT32 ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM)
                     << "Unsupported input tensor type for operation " << opType;
             std::vector<OperandType> inExpectedTypes = {OperandType::TENSOR_INT32,
                                                         OperandType::TENSOR_INT32, inputType};
@@ -1972,22 +1925,22 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                                                          OperandType::TENSOR_QUANT8_ASYMM};
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         }
         case OperationType::LSH_PROJECTION: {
-            NN_VALIDATE(inputIndexes.size() == 4 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 4 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(4, 1);
             auto inputType = operands[inputIndexes[1]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT16 ||
-                        inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_INT32 ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT16 ||
+                         inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_INT32 ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM)
                     << "Unsupported input tensor type for operation " << opType;
             auto hashType = operands[inputIndexes[0]].type;
             Version version;
             std::vector<OperandType> inExpectedTypes;
             if (hashType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16,
                         inputType,
@@ -1995,7 +1948,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                         OperandType::INT32,
                 };
             } else if (hashType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT32,
                         inputType,
@@ -2003,7 +1956,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                         OperandType::INT32,
                 };
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported hash tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported hash tensor type for operation " << opType;
             }
             std::vector<OperandType> outExpectedTypes = {OperandType::TENSOR_INT32};
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
@@ -2015,19 +1968,19 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             const uint32_t kNumOutputsMerged = 1;
             const uint32_t kNumOutputsWithState = 6;
             const uint32_t kNumOutputsMergedWithState = 5;
-            NN_VALIDATE(inputIndexes.size() == 61 &&
-                        (outputIndexes.size() == kNumOutputs ||
-                         outputIndexes.size() == kNumOutputsMerged ||
-                         outputIndexes.size() == kNumOutputsWithState ||
-                         outputIndexes.size() == kNumOutputsMergedWithState))
+            NN_RET_CHECK(inputIndexes.size() == 61 &&
+                         (outputIndexes.size() == kNumOutputs ||
+                          outputIndexes.size() == kNumOutputsMerged ||
+                          outputIndexes.size() == kNumOutputsWithState ||
+                          outputIndexes.size() == kNumOutputsMergedWithState))
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 61) or output operands (" << outputIndexes.size()
                     << ", expected 1, 2, 5 or 6) for operation " << opType;
 
             std::vector<OperandType> inExpectedTypes;
             auto inputType = operands[inputIndexes[0]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_FLOAT16)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_FLOAT16)
                     << "Unsupported input tensor type for operation " << opType;
 
             inExpectedTypes = {};
@@ -2047,10 +2000,10 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes.push_back(inputType);
             }
 
-            Version version = Version::ANDROID_Q;
+            Version version = kVersionFeatureLevel3;
             if (outputIndexes.size() == kNumOutputsWithState ||
                 outputIndexes.size() == kNumOutputsMergedWithState) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             }
             std::vector<OperandType> outExpectedTypes(outputIndexes.size(), inputType);
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
@@ -2058,19 +2011,19 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             return version;
         }
         case OperationType::LSTM: {
-            NN_VALIDATE((inputIndexes.size() == 23 || inputIndexes.size() == 27) &&
-                        outputIndexes.size() == 4)
+            NN_RET_CHECK((inputIndexes.size() == 23 || inputIndexes.size() == 27) &&
+                         outputIndexes.size() == 4)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 23 or 27) or output operands (" << outputIndexes.size()
                     << ", expected 4) for operation " << opType;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             auto inputType = operands[inputIndexes[0]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_FLOAT16)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_FLOAT16)
                     << "Unsupported input tensor type for operation " << opType;
 
-            Version version = Version::ANDROID_OC_MR1;
+            Version version = kVersionFeatureLevel1;
             inExpectedTypes = {inputType,         inputType, inputType, inputType, inputType,
                                inputType,         inputType, inputType, inputType, inputType,
                                inputType,         inputType, inputType, inputType, inputType,
@@ -2080,16 +2033,16 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes.push_back(OperandType::FLOAT32);
                 inExpectedTypes.push_back(OperandType::FLOAT32);
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes.push_back(OperandType::FLOAT16);
                 inExpectedTypes.push_back(OperandType::FLOAT16);
             }
 
             outExpectedTypes = {inputType, inputType, inputType, inputType};
             if (inputIndexes.size() == 23) {
-                version = combineVersions(version, Version::ANDROID_OC_MR1);
+                version = combineVersions(version, kVersionFeatureLevel1);
             } else {
-                version = combineVersions(version, Version::ANDROID_Q);
+                version = combineVersions(version, kVersionFeatureLevel3);
                 for (int i = 0; i < 4; ++i) {
                     inExpectedTypes.push_back(inputType);
                 }
@@ -2099,7 +2052,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             return version;
         }
         case OperationType::QUANTIZED_16BIT_LSTM: {
-            NN_VALIDATE(inputIndexes.size() == 15 && outputIndexes.size() == 2)
+            NN_RET_CHECK(inputIndexes.size() == 15 && outputIndexes.size() == 2)
                     << invalidInOutNumberMessage(15, 2);
             std::vector<OperandType> inExpectedTypes = {
                     OperandType::TENSOR_QUANT8_ASYMM, OperandType::TENSOR_QUANT8_ASYMM,
@@ -2114,10 +2067,10 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                                                          OperandType::TENSOR_QUANT8_ASYMM};
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         }
         case OperationType::RANDOM_MULTINOMIAL: {
-            NN_VALIDATE(inputIndexes.size() == 3 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 3 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(3, 1);
             OperandType inputType = operands[inputIndexes[0]].type;
             std::vector<OperandType> inExpectedTypes;
@@ -2125,22 +2078,22 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inputType == OperandType::TENSOR_FLOAT16) {
                 inExpectedTypes = {inputType, OperandType::INT32, OperandType::TENSOR_INT32};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             std::vector<OperandType> outExpectedTypes = {OperandType::TENSOR_INT32};
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         }
         case OperationType::RNN: {
-            NN_VALIDATE(inputIndexes.size() == 6 && outputIndexes.size() == 2)
+            NN_RET_CHECK(inputIndexes.size() == 6 && outputIndexes.size() == 2)
                     << invalidInOutNumberMessage(6, 2);
             OperandType inputType = operands[inputIndexes[0]].type;
             Version version;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT32, OperandType::TENSOR_FLOAT32,
                         OperandType::TENSOR_FLOAT32, OperandType::TENSOR_FLOAT32,
@@ -2151,7 +2104,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                         OperandType::TENSOR_FLOAT32,
                 };
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16, OperandType::TENSOR_FLOAT16,
                         OperandType::TENSOR_FLOAT16, OperandType::TENSOR_FLOAT16,
@@ -2162,23 +2115,23 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                         OperandType::TENSOR_FLOAT16,
                 };
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::SVDF: {
-            NN_VALIDATE(inputIndexes.size() == 7 && outputIndexes.size() == 2)
+            NN_RET_CHECK(inputIndexes.size() == 7 && outputIndexes.size() == 2)
                     << invalidInOutNumberMessage(7, 2);
             Version version;
             OperandType inputType = operands[inputIndexes[0]].type;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_OC_MR1;
+                version = kVersionFeatureLevel1;
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             std::vector<OperandType> inExpectedTypes = {
                     inputType, inputType,          inputType,          inputType,
@@ -2190,13 +2143,13 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             return version;
         }
         case OperationType::BATCH_TO_SPACE_ND: {
-            NN_VALIDATE((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
-                        outputIndexes.size() == 1)
+            NN_RET_CHECK((inputIndexes.size() == 3 || inputIndexes.size() == 2) &&
+                         outputIndexes.size() == 1)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 3 or 2) or output operands (" << outputIndexes.size()
                     << ", expected 1) for operation " << opType;
             auto inputType = operands[inputIndexes[0]].type;
-            Version version = Version::ANDROID_OC_MR1;
+            Version version = kVersionFeatureLevel1;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
@@ -2206,7 +2159,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16,
                         OperandType::TENSOR_INT32,
@@ -2219,33 +2172,33 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {
                         OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
                         OperandType::TENSOR_INT32,
                 };
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             if (inputIndexes.size() == 3) {
                 inExpectedTypes.push_back(OperandType::BOOL);
-                version = combineVersions(version, Version::ANDROID_Q);
+                version = combineVersions(version, kVersionFeatureLevel3);
             } else {
-                version = combineVersions(version, Version::ANDROID_P);
+                version = combineVersions(version, kVersionFeatureLevel2);
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::SPACE_TO_BATCH_ND: {
-            NN_VALIDATE((inputIndexes.size() == 4 || inputIndexes.size() == 3) &&
-                        outputIndexes.size() == 1)
+            NN_RET_CHECK((inputIndexes.size() == 4 || inputIndexes.size() == 3) &&
+                         outputIndexes.size() == 1)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 4 or 3) or output operands (" << outputIndexes.size()
                     << ", expected 1) for operation " << opType;
             auto inputType = operands[inputIndexes[0]].type;
-            Version version = Version::ANDROID_OC_MR1;
+            Version version = kVersionFeatureLevel1;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
@@ -2256,7 +2209,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16,
                         OperandType::TENSOR_INT32,
@@ -2265,7 +2218,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 outExpectedTypes = {OperandType::TENSOR_FLOAT16};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM) {
                 if (operands[inputIndexes[0]].zeroPoint != 0) {
-                    version = Version::ANDROID_Q;
+                    version = kVersionFeatureLevel3;
                 }
                 inExpectedTypes = {
                         OperandType::TENSOR_QUANT8_ASYMM,
@@ -2274,7 +2227,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {
                         OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
                         OperandType::TENSOR_INT32,
@@ -2282,34 +2235,34 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             if (inputIndexes.size() == 4) {
                 inExpectedTypes.push_back(OperandType::BOOL);
-                version = combineVersions(version, Version::ANDROID_Q);
+                version = combineVersions(version, kVersionFeatureLevel3);
             } else {
-                version = combineVersions(version, Version::ANDROID_P);
+                version = combineVersions(version, kVersionFeatureLevel2);
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::PAD: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             Version version;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_P;
+                version = kVersionFeatureLevel2;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT32,
                         OperandType::TENSOR_INT32,
                 };
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16,
                         OperandType::TENSOR_INT32,
@@ -2318,12 +2271,12 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM ||
                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
                 if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                    version = Version::ANDROID_R;
+                    version = kVersionFeatureLevel4;
                 } else {
                     if (operands[inputIndexes[0]].zeroPoint == 0) {
-                        version = Version::ANDROID_P;
+                        version = kVersionFeatureLevel2;
                     } else {
-                        version = Version::ANDROID_Q;
+                        version = kVersionFeatureLevel3;
                     }
                 }
                 inExpectedTypes = {
@@ -2332,24 +2285,24 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             const auto inputRank = operands[inputIndexes[0]].dimensions.size();
-            NN_VALIDATE_LE(inputRank, 4u)
+            NN_RET_CHECK_LE(inputRank, 4u)
                     << "Unsupported input tensor rank for operation " << opType;
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::PAD_V2: {
-            NN_VALIDATE(inputIndexes.size() == 3 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 3 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(3, 1);
             auto inputType = operands[inputIndexes[0]].type;
             Version version;
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
             if (inputType == OperandType::TENSOR_FLOAT32) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT32,
                         OperandType::TENSOR_INT32,
@@ -2357,7 +2310,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };
                 outExpectedTypes = {OperandType::TENSOR_FLOAT32};
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {
                         OperandType::TENSOR_FLOAT16,
                         OperandType::TENSOR_INT32,
@@ -2367,9 +2320,9 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM ||
                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
                 if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                    version = Version::ANDROID_R;
+                    version = kVersionFeatureLevel4;
                 } else {
-                    version = Version::ANDROID_Q;
+                    version = kVersionFeatureLevel3;
                 }
                 inExpectedTypes = {
                         inputType,
@@ -2378,17 +2331,17 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 };  // TODO(b/116699425): Make it UINT8.
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             const auto inputRank = operands[inputIndexes[0]].dimensions.size();
-            NN_VALIDATE_LE(inputRank, 4u)
+            NN_RET_CHECK_LE(inputRank, 4u)
                     << "Unsupported input tensor rank for operation " << opType;
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::CAST: {
-            NN_VALIDATE(inputIndexes.size() == 1 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 1 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(1, 1);
             auto inputOperand = operands[inputIndexes[0]];
             auto outputOperand = operands[outputIndexes[0]];
@@ -2405,7 +2358,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                  outputType == OperandType::TENSOR_FLOAT32 ||
                  outputType == OperandType::TENSOR_INT32 ||
                  outputType == OperandType::TENSOR_QUANT8_ASYMM)) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
                 inExpectedTypes = {inputType};
                 outExpectedTypes = {outputType};
             } else if (inputType == OperandType::TENSOR_BOOL8 ||
@@ -2413,11 +2366,11 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                        inputType == OperandType::TENSOR_QUANT16_SYMM ||
                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED ||
                        inputType == OperandType::TENSOR_QUANT8_SYMM) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
                 inExpectedTypes = {inputType};
                 outExpectedTypes = {inputType};  // Only identity CAST is supported.
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported data type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported data type for operation " << opType;
             }
             // Validate that output shape is equal to input shape if dimensions
             // are already known.
@@ -2427,30 +2380,30 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 }
                 return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
             };
-            NN_VALIDATE(inputOperand.dimensions.empty() || outputOperand.dimensions.empty() ||
-                        getNumberOfElements(outputOperand.dimensions) == 0 ||
-                        inputOperand.dimensions == outputOperand.dimensions);
+            NN_RET_CHECK(inputOperand.dimensions.empty() || outputOperand.dimensions.empty() ||
+                         getNumberOfElements(outputOperand.dimensions) == 0 ||
+                         inputOperand.dimensions == outputOperand.dimensions);
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::MEAN: {
-            NN_VALIDATE(inputIndexes.size() == 3 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 3 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(3, 1);
             const auto inputRank = operands[inputIndexes[0]].dimensions.size();
-            NN_VALIDATE_LE(inputRank, 4u)
+            NN_RET_CHECK_LE(inputRank, 4u)
                     << "Unsupported input tensor rank for operation " << opType;
             auto inputType = operands[inputIndexes[0]].type;
             Version version;
             if (inputType == OperandType::TENSOR_FLOAT32 ||
                 inputType == OperandType::TENSOR_QUANT8_ASYMM) {
-                version = Version::ANDROID_P;
+                version = kVersionFeatureLevel2;
             } else if (inputType == OperandType::TENSOR_FLOAT16) {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             std::vector<OperandType> inExpectedTypes = {inputType, OperandType::TENSOR_INT32,
                                                         OperandType::INT32};
@@ -2461,7 +2414,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
         }
         case OperationType::ARGMAX:
         case OperationType::ARGMIN: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             std::vector<OperandType> inExpectedTypes;
@@ -2474,14 +2427,14 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes = {inputType, OperandType::INT32};
                 outExpectedTypes = {OperandType::TENSOR_INT32};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         }
         case OperationType::EXPAND_DIMS: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             std::vector<OperandType> inExpectedTypes;
@@ -2494,34 +2447,34 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes = {inputType, OperandType::INT32};
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::SPLIT: {
-            NN_VALIDATE_EQ(inputIndexes.size(), 3u)
+            NN_RET_CHECK_EQ(inputIndexes.size(), 3u)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 3)" << opType;
             auto inputType = operands[inputIndexes[0]].type;
-            NN_VALIDATE(inputType == OperandType::TENSOR_FLOAT16 ||
-                        inputType == OperandType::TENSOR_FLOAT32 ||
-                        inputType == OperandType::TENSOR_INT32 ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM ||
-                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
+            NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT16 ||
+                         inputType == OperandType::TENSOR_FLOAT32 ||
+                         inputType == OperandType::TENSOR_INT32 ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM ||
+                         inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
                     << "Unsupported input tensor type for operation " << opType;
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             std::vector<OperandType> inExpectedTypes = {inputType, OperandType::INT32,
                                                         OperandType::INT32};
@@ -2532,7 +2485,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
         }
         case OperationType::MAXIMUM:
         case OperationType::MINIMUM: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             std::vector<OperandType> inExpectedTypes;
             std::vector<OperandType> outExpectedTypes;
@@ -2545,21 +2498,21 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes = {inputType, inputType};
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::GROUPED_CONV_2D: {
-            NN_VALIDATE((inputIndexes.size() == 12 || inputIndexes.size() == 9) &&
-                        outputIndexes.size() == 1)
+            NN_RET_CHECK((inputIndexes.size() == 12 || inputIndexes.size() == 9) &&
+                         outputIndexes.size() == 1)
                     << "Invalid number of input operands (" << inputIndexes.size()
                     << ", expected 12 or 9) or output operands (" << outputIndexes.size()
                     << ", expected 1) for operation " << opType;
@@ -2581,14 +2534,14 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 outExpectedTypes = {OperandType::TENSOR_FLOAT16};
             } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM ||
                        inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                NN_VALIDATE(filterType == inputType ||
-                            filterType == OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL)
+                NN_RET_CHECK(filterType == inputType ||
+                             filterType == OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL)
                         << "Unsupported filter tensor type for operation " << opType;
 
-                NN_VALIDATE(filterType != OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL ||
-                            std::get<Operand::SymmPerChannelQuantParams>(
-                                    operands[inputIndexes[1]].extraParams)
-                                            .channelDim == 0)
+                NN_RET_CHECK(filterType != OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL ||
+                             std::get<Operand::SymmPerChannelQuantParams>(
+                                     operands[inputIndexes[1]].extraParams)
+                                             .channelDim == 0)
                         << "Unsupported filter tensor channel dimension for operation " << opType;
 
                 inExpectedTypes = {
@@ -2597,7 +2550,7 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                         OperandType::INT32, OperandType::INT32};
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
 
             if (inputIndexes.size() == 12) {
@@ -2608,16 +2561,16 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
             inExpectedTypes.push_back(OperandType::BOOL);
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::TILE: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             std::vector<OperandType> inExpectedTypes;
@@ -2630,20 +2583,20 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes = {inputType, OperandType::TENSOR_INT32};
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
             return version;
         }
         case OperationType::POW: {
-            NN_VALIDATE(inputIndexes.size() == 2 && outputIndexes.size() == 1)
+            NN_RET_CHECK(inputIndexes.size() == 2 && outputIndexes.size() == 1)
                     << invalidInOutNumberMessage(2, 1);
             auto inputType = operands[inputIndexes[0]].type;
             std::vector<OperandType> inExpectedTypes;
@@ -2653,13 +2606,13 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                 inExpectedTypes = {inputType, inputType};
                 outExpectedTypes = {inputType};
             } else {
-                NN_VALIDATE_FAIL() << "Unsupported input tensor type for operation " << opType;
+                NN_RET_CHECK_FAIL() << "Unsupported input tensor type for operation " << opType;
             }
             Version version;
             if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-                version = Version::ANDROID_R;
+                version = kVersionFeatureLevel4;
             } else {
-                version = Version::ANDROID_Q;
+                version = kVersionFeatureLevel3;
             }
             NN_TRY(validateOperationOperandTypes(operands, inputIndexes, inExpectedTypes,
                                                  outputIndexes, outExpectedTypes));
@@ -2676,9 +2629,9 @@ Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
                     BuiltinOperationResolver::get()->findOperation(
                             static_cast<OperationType>(opType));
             // TODO: return ErrorStatus::UNEXPECTED_NULL
-            NN_VALIDATE(operationRegistration != nullptr) << opType << " not registered";
+            NN_RET_CHECK(operationRegistration != nullptr) << opType << " not registered";
             // TODO: return ErrorStatus::UNEXPECTED_NULL
-            NN_VALIDATE(operationRegistration->validate != nullptr)
+            NN_RET_CHECK(operationRegistration->validate != nullptr)
                     << "Incomplete operation registration: " << opType;
 
             OperationValidationContext context(operationRegistration->name, inputIndexes,
@@ -2710,8 +2663,19 @@ Result<Version> validateOperationIncludingOperandVersions(
 // namespace. If there is a function name clash between one of the functions below and one of the
 // functions above, the function in the anonymous namespace is appended with "Impl".
 
-Version combineVersions(Version lhs, Version rhs) {
-    return std::max<Version>(lhs, rhs);
+Version combineVersions(Version minVersionNeeded1, Version minVersionNeeded2) {
+    return Version{
+            .level = std::max<Version::Level>(minVersionNeeded1.level, minVersionNeeded2.level),
+            .runtimeOnlyFeatures =
+                    minVersionNeeded1.runtimeOnlyFeatures || minVersionNeeded2.runtimeOnlyFeatures,
+    };
+}
+
+bool isCompliantVersion(Version minVersionNeeded, Version maxVersionSupported) {
+    if (minVersionNeeded.runtimeOnlyFeatures && !maxVersionSupported.runtimeOnlyFeatures) {
+        return false;
+    }
+    return minVersionNeeded.level <= maxVersionSupported.level;
 }
 
 Result<Version> validate(const DeviceStatus& deviceStatus) {
@@ -2877,15 +2841,15 @@ Result<Version> validateOperationAndAnythingItDependsOn(
         const std::vector<size_t>& poolSizes, const std::vector<Model::Subgraph>& subgraphs,
         SubgraphVersionCache* subgraphVersionCache) {
     CHECK(subgraphVersionCache != nullptr);
-    std::vector<Version> operandVersions(operands.size(), Version::ANDROID_OC_MR1);
+    std::vector<Version> operandVersions(operands.size(), kVersionFeatureLevel1);
     for (uint32_t index : operation.inputs) {
-        NN_VALIDATE_LT(index, operands.size());
+        NN_RET_CHECK_LT(index, operands.size());
         const Operand& operand = operands[index];
         operandVersions[index] = NN_TRY(validateOperandAndAnythingItDependsOn(
                 operand, operandValuesSize, poolSizes, subgraphs, subgraphVersionCache));
     }
     for (uint32_t index : operation.outputs) {
-        NN_VALIDATE_LT(index, operands.size());
+        NN_RET_CHECK_LT(index, operands.size());
         const Operand& operand = operands[index];
         operandVersions[index] = NN_TRY(validateOperandAndAnythingItDependsOn(
                 operand, operandValuesSize, poolSizes, subgraphs, subgraphVersionCache));
