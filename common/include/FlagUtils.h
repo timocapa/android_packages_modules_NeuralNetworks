@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_FLAG_UTILS_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_FLAG_UTILS_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_FLAG_UTILS_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_FLAG_UTILS_H
 
 #include <stdint.h>
 
@@ -31,7 +31,7 @@ constexpr char kCurrentFeatureLevelFlagName[] = "current_feature_level";
 constexpr int64_t kDefaultFeatureLevelNum = 5;
 constexpr FeatureLevelCode KDefaultFeatureLevelCode = ANEURALNETWORKS_FEATURE_LEVEL_5;
 constexpr int64_t kMinFeatureLevelNum = 5;
-constexpr int64_t kMaxFeatureLevelNum = 6;
+constexpr int64_t kMaxFeatureLevelNum = 7;
 
 // Weak symbol to get server feature level flag so that other targets with different build options
 // (e.g. not vendor available) can implement this function.
@@ -45,4 +45,4 @@ FeatureLevelCode queryFeatureLevel();
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_FLAG_UTILS_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_FLAG_UTILS_H

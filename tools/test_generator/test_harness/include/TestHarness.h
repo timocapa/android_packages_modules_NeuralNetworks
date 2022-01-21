@@ -20,8 +20,8 @@
 // Both CTS and VTS will consume this test structure and convert into their own model and
 // request format.
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
-#define ANDROID_FRAMEWORKS_ML_NN_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
 
 #include <algorithm>
 #include <cstdlib>
@@ -196,13 +196,15 @@ enum class TestOperationType {
     RANK = 101,
     BATCH_MATMUL = 102,
     PACK = 103,
+    MIRROR_PAD = 104,
+    REVERSE = 105,
 #ifdef NN_EXPERIMENTAL_FEATURE
     DENSIFY = 20000,
 #endif  // NN_EXPERIMENTAL_FEATURE
 };
 
 // TODO(b/202703727): Refactor this with android::nn::HalVersion.
-enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3, AIDL_V1, AIDL_V2 };
+enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3, AIDL_V1, AIDL_V2, AIDL_V3 };
 
 // Manages the data buffer for a test operand.
 class TestBuffer {
@@ -327,6 +329,8 @@ struct TestModel {
                 return 1;
             case TestHalVersion::AIDL_V2:
                 return 2;
+            case TestHalVersion::AIDL_V3:
+                return 3;
             default:
                 // HIDL versions are treated as AIDL version 0 so that all AIDL services are newer.
                 return 0;
@@ -568,4 +572,4 @@ void setExpectedOutputsFromFloat32Results(const std::vector<TestBuffer>& results
 
 }  // namespace test_helper
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_TOOLS_TEST_GENERATOR_TEST_HARNESS_TEST_HARNESS_H
