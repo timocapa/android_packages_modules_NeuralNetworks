@@ -91,7 +91,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
             << "Unsupported tensor type for elementwise operation";
     NN_RET_CHECK(validateInputTypes(context, {inputType}));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));
-    return Version::ANDROID_Q;
+    return kVersionFeatureLevel3;
 }
 
 Result<Version> validateAbs(const IOperationValidationContext* context) {
@@ -103,7 +103,7 @@ Result<Version> validateAbs(const IOperationValidationContext* context) {
             << "Unsupported tensor type for operation ABS";
     NN_RET_CHECK(validateInputTypes(context, {inputType}));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));
-    return inputType == OperandType::TENSOR_INT32 ? Version::ANDROID_R : Version::ANDROID_Q;
+    return inputType == OperandType::TENSOR_INT32 ? kVersionFeatureLevel4 : kVersionFeatureLevel3;
 }
 
 Result<Version> validateFloor(const IOperationValidationContext* context) {
@@ -122,7 +122,24 @@ Result<Version> validateFloor(const IOperationValidationContext* context) {
         NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
 
-    return inputType == OperandType::TENSOR_FLOAT16 ? Version::ANDROID_Q : Version::ANDROID_OC_MR1;
+    return inputType == OperandType::TENSOR_FLOAT16 ? kVersionFeatureLevel3 : kVersionFeatureLevel1;
+}
+
+Result<Version> validateRsqrt(const IOperationValidationContext* context) {
+    NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
+    NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
+    OperandType inputType = context->getInputType(kInputTensor);
+    NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT16 ||
+                 inputType == OperandType::TENSOR_FLOAT32 ||
+                 inputType == OperandType::TENSOR_QUANT8_ASYMM ||
+                 inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
+            << "Unsupported tensor type for operation RSQRT";
+    NN_RET_CHECK(validateInputTypes(context, {inputType}));
+    NN_RET_CHECK(validateOutputTypes(context, {inputType}));
+    return (inputType == OperandType::TENSOR_QUANT8_ASYMM ||
+            inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
+                   ? kVersionFeatureLevel7
+                   : kVersionFeatureLevel3;
 }
 
 bool prepare(IOperationExecutionContext* context) {
@@ -174,7 +191,7 @@ NN_REGISTER_OPERATION(FLOOR, "FLOOR", elementwise::validateFloor, elementwise::p
                       elementwise::executeFloor);
 NN_REGISTER_OPERATION(LOG, "LOG", elementwise::validate, elementwise::prepare,
                       elementwise::executeLog);
-NN_REGISTER_OPERATION(RSQRT, "RSQRT", elementwise::validate, elementwise::prepare,
+NN_REGISTER_OPERATION(RSQRT, "RSQRT", elementwise::validateRsqrt, elementwise::prepare,
                       elementwise::executeRsqrt);
 NN_REGISTER_OPERATION(SIN, "SIN", elementwise::validate, elementwise::prepare,
                       elementwise::executeSin);

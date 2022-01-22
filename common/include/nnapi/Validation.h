@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_VALIDATION_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_VALIDATION_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_VALIDATION_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_VALIDATION_H
 
 #include <memory>
 #include <set>
@@ -29,7 +29,18 @@ namespace android::nn {
 
 // Utility functions
 
-Version combineVersions(Version lhs, Version rhs);
+// Takes two minimum versions needed for two features and returns a the minimum version that must be
+// supported in order to support both features.
+Version combineVersions(Version minVersionNeeded1, Version minVersionNeeded2);
+
+// Indicates whether a feature at version `minVersionNeeded` is supported on version
+// `maxVersionSupported`. For example:
+// * a feature at kVersionFeatureLevel2 is supported on a driver at kVersionFeatureLevel3.
+// * a feature at kVersionFeatureLevel3 is supported on a driver at kVersionFeatureLevel3.
+// * a feature at kVersionFeatureLevel5 is not supported on a driver at kVersionFeatureLevel3.
+// * a feature that is runtime only (i.e., invalid with respect to the HAL specification) is not
+//   supported on a driver that does not support runtime-only features.
+bool isCompliantVersion(Version minVersionNeeded, Version maxVersionSupported);
 
 Result<Version> validate(const DeviceStatus& deviceStatus);
 Result<Version> validate(const ExecutionPreference& executionPreference);
@@ -133,4 +144,4 @@ Result<Version> validateOperandAndAnythingItDependsOn(const Operand& operand,
 
 }  // namespace android::nn
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_VALIDATION_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_VALIDATION_H
