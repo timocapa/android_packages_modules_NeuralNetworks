@@ -90,8 +90,8 @@ class BuiltinOperationResolver : public IOperationResolver {
 
     const OperationRegistration* findOperation(OperationType operationType) const override;
 
-    // The number of operation types (OperationCode) defined in NeuralNetworks.h.
-    static constexpr int kNumberOfOperationTypes = 102;
+    // The number of operation types (OperationCode) defined in NeuralNetworksTypes.h.
+    static constexpr int kNumberOfOperationTypes = 104;
 
 #ifdef NN_EXPERIMENTAL_FEATURE
     // The number of experimental operation types (ANeuralNetworksExperimentalOperationCode) defined
@@ -145,7 +145,7 @@ class BuiltinOperationResolver : public IOperationResolver {
 #else
 // This version ignores CPU execution logic (prepare and execute).
 // The compiler is supposed to omit that code so that only validation logic
-// makes it into libneuralnetworks_utils.
+// makes it into libneuralnetworks_common*.
 #define NN_REGISTER_OPERATION(identifier, operationName, validate, unused_prepare, unused_execute, \
                               ...)                                                                 \
     const OperationRegistration* register_##identifier() {                                         \

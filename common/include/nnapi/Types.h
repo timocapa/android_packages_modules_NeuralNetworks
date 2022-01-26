@@ -177,8 +177,12 @@ enum class ErrorStatus {
 };
 
 struct GeneralError {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ GeneralError(std::string message = {},
+                              ErrorStatus code = ErrorStatus::GENERAL_FAILURE);
+
     std::string message;
-    ErrorStatus code = ErrorStatus::GENERAL_FAILURE;
+    ErrorStatus code;
 };
 
 template <typename Type>
@@ -219,10 +223,18 @@ struct OutputShape {
 };
 
 struct ExecutionError {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ ExecutionError(std::string message = {},
+                                ErrorStatus code = ErrorStatus::GENERAL_FAILURE,
+                                std::vector<OutputShape> outputShapes = {});
+
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ ExecutionError(GeneralError error);
+
     std::string message;
-    ErrorStatus code = ErrorStatus::GENERAL_FAILURE;
+    ErrorStatus code;
     // OutputShapes for code == OUTPUT_INSUFFICIENT_SIZE
-    std::vector<OutputShape> outputShapes = {};
+    std::vector<OutputShape> outputShapes;
 };
 
 template <typename Type>
@@ -979,15 +991,16 @@ struct Timing {
 // Returns status, timingLaunched, timingFenced
 using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
+// Note: Update getLatestHalVersion in TypeUtils.h when a newer version is added here.
 enum class Version {
-    ANDROID_OC_MR1,
-    ANDROID_P,
-    ANDROID_Q,
-    ANDROID_R,
-    ANDROID_S,
-    CURRENT_RUNTIME,
+    ANDROID_OC_MR1 = 0,
+    ANDROID_P = 2,
+    ANDROID_Q = 4,
+    ANDROID_R = 6,
+    ANDROID_S = 8,
+    FEATURE_LEVEL_6 = 10,
 #ifdef NN_EXPERIMENTAL_FEATURE
-    EXPERIMENTAL,
+    EXPERIMENTAL = 12,
 #endif  // NN_EXPERIMENTAL_FEATURE
 };
 

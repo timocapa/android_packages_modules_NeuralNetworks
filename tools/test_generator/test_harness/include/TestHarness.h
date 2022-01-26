@@ -194,12 +194,15 @@ enum class TestOperationType {
     HARD_SWISH = 99,
     FILL = 100,
     RANK = 101,
+    BATCH_MATMUL = 102,
+    PACK = 103,
 #ifdef NN_EXPERIMENTAL_FEATURE
     DENSIFY = 20000,
 #endif  // NN_EXPERIMENTAL_FEATURE
 };
 
-enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3 };
+// TODO(b/202703727): Refactor this with android::nn::HalVersion.
+enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3, AIDL_V1, AIDL_V2 };
 
 // Manages the data buffer for a test operand.
 class TestBuffer {
@@ -316,6 +319,19 @@ struct TestModel {
 
     // The minimum supported HAL version.
     TestHalVersion minSupportedVersion = TestHalVersion::UNKNOWN;
+
+    // Returns an int AIDL version number. HIDL versions are treated as AIDL version 0.
+    int32_t getAidlVersionInt() const {
+        switch (minSupportedVersion) {
+            case TestHalVersion::AIDL_V1:
+                return 1;
+            case TestHalVersion::AIDL_V2:
+                return 2;
+            default:
+                // HIDL versions are treated as AIDL version 0 so that all AIDL services are newer.
+                return 0;
+        }
+    }
 
     void forEachSubgraph(std::function<void(const TestSubgraph&)> handler) const {
         handler(main);
