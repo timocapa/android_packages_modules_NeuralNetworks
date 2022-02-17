@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPES_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPES_H
 
 #include <android-base/chrono_utils.h>
 #include <android-base/expected.h>
@@ -991,18 +991,39 @@ struct Timing {
 // Returns status, timingLaunched, timingFenced
 using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
-// Note: Update getLatestHalVersion in TypeUtils.h when a newer version is added here.
-enum class Version {
-    ANDROID_OC_MR1 = 0,
-    ANDROID_P = 2,
-    ANDROID_Q = 4,
-    ANDROID_R = 6,
-    ANDROID_S = 8,
-    FEATURE_LEVEL_6 = 10,
+// Version is a tuple that contains what NNAPI feature level is supported/required and whether
+// runtime-only features are supported/required.
+struct Version {
+    enum class Level : uint8_t {
+        FEATURE_LEVEL_1,
+        FEATURE_LEVEL_2,
+        FEATURE_LEVEL_3,
+        FEATURE_LEVEL_4,
+        FEATURE_LEVEL_5,
+        FEATURE_LEVEL_6,
+        FEATURE_LEVEL_7,
+        FEATURE_LEVEL_8,
 #ifdef NN_EXPERIMENTAL_FEATURE
-    EXPERIMENTAL = 12,
+        FEATURE_LEVEL_EXPERIMENTAL,
 #endif  // NN_EXPERIMENTAL_FEATURE
+    };
+
+    Level level;
+    bool runtimeOnlyFeatures = false;
 };
+
+constexpr auto kVersionFeatureLevel1 = Version{.level = Version::Level::FEATURE_LEVEL_1};
+constexpr auto kVersionFeatureLevel2 = Version{.level = Version::Level::FEATURE_LEVEL_2};
+constexpr auto kVersionFeatureLevel3 = Version{.level = Version::Level::FEATURE_LEVEL_3};
+constexpr auto kVersionFeatureLevel4 = Version{.level = Version::Level::FEATURE_LEVEL_4};
+constexpr auto kVersionFeatureLevel5 = Version{.level = Version::Level::FEATURE_LEVEL_5};
+constexpr auto kVersionFeatureLevel6 = Version{.level = Version::Level::FEATURE_LEVEL_6};
+constexpr auto kVersionFeatureLevel7 = Version{.level = Version::Level::FEATURE_LEVEL_7};
+constexpr auto kVersionFeatureLevel8 = Version{.level = Version::Level::FEATURE_LEVEL_8};
+#ifdef NN_EXPERIMENTAL_FEATURE
+constexpr auto kVersionFeatureLevelExperimental =
+        Version{.level = Version::Level::FEATURE_LEVEL_EXPERIMENTAL};
+#endif  // NN_EXPERIMENTAL_FEATURE
 
 // Describes the memory preference of an operand.
 struct MemoryPreference {
@@ -1021,4 +1042,4 @@ struct MemoryPreference {
 
 }  // namespace android::nn
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPES_H

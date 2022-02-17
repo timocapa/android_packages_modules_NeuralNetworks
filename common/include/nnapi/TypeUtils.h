@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPE_UTILS_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPE_UTILS_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPE_UTILS_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPE_UTILS_H
 
+#include <android-base/expected.h>
 #include <android-base/logging.h>
 #include <android-base/macros.h>
 
@@ -31,14 +32,6 @@
 #include "nnapi/Types.h"
 
 namespace android::nn {
-
-// The latest version of the HAL allowed by the Experimental Feature Level flag.
-Version getLatestHalVersion();
-
-// The runtime supports functionality that is currently not part of any HAL specification (e.g.,
-// Control Flow operations with operands of unknown size; see http://b/132458982#comment63). Because
-// of this, the runtime version is always the latest available HAL version + 1.
-Version getCurrentRuntimeVersion();
 
 bool isExtension(OperandType type);
 bool isExtension(OperationType type);
@@ -135,6 +128,7 @@ std::ostream& operator<<(std::ostream& os, const TimePoint& timePoint);
 std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTimePoint);
 std::ostream& operator<<(std::ostream& os, const Duration& timeoutDuration);
 std::ostream& operator<<(std::ostream& os, const OptionalDuration& optionalTimeoutDuration);
+std::ostream& operator<<(std::ostream& os, const Version::Level& versionLevel);
 std::ostream& operator<<(std::ostream& os, const Version& version);
 
 bool operator==(const Timing& a, const Timing& b);
@@ -163,6 +157,8 @@ bool operator==(const Operand& a, const Operand& b);
 bool operator!=(const Operand& a, const Operand& b);
 bool operator==(const Operation& a, const Operation& b);
 bool operator!=(const Operation& a, const Operation& b);
+bool operator==(const Version& a, const Version& b);
+bool operator!=(const Version& a, const Version& b);
 
 inline std::string toString(uint32_t obj) {
     return std::to_string(obj);
@@ -211,9 +207,10 @@ void initVLogMask();
 //
 //   NN_RET_CHECK_FAIL() << "Something went wrong";
 //
-// The containing function must return a bool.
-#define NN_RET_CHECK_FAIL()                   \
-    return ::android::nn::FalseyErrorStream() \
+// The containing function must return a bool or a base::expected (including nn::Result,
+// nn::GeneralResult, and nn::ExecutionResult).
+#define NN_RET_CHECK_FAIL()                       \
+    return ::android::nn::NnRetCheckErrorStream() \
            << "NN_RET_CHECK failed (" << __FILE__ << ":" << __LINE__ << "): "
 
 // Logs an error and returns false if condition is false. Extra logging can be appended using <<
@@ -221,7 +218,8 @@ void initVLogMask();
 //
 //   NN_RET_CHECK(false) << "Something went wrong";
 //
-// The containing function must return a bool.
+// The containing function must return a bool or a base::expected (including nn::Result,
+// nn::GeneralResult, and nn::ExecutionResult).
 #define NN_RET_CHECK(condition) \
     while (UNLIKELY(!(condition))) NN_RET_CHECK_FAIL() << #condition << " "
 
@@ -244,7 +242,8 @@ void initVLogMask();
 //
 // The values must implement the appropriate comparison operator as well as
 // `operator<<(std::ostream&, ...)`.
-// The containing function must return a bool.
+// The containing function must return a bool or a base::expected (including nn::Result,
+// nn::GeneralResult, and nn::ExecutionResult).
 #define NN_RET_CHECK_EQ(x, y) NN_RET_CHECK_OP(x, y, ==)
 #define NN_RET_CHECK_NE(x, y) NN_RET_CHECK_OP(x, y, !=)
 #define NN_RET_CHECK_LE(x, y) NN_RET_CHECK_OP(x, y, <=)
@@ -252,36 +251,46 @@ void initVLogMask();
 #define NN_RET_CHECK_GE(x, y) NN_RET_CHECK_OP(x, y, >=)
 #define NN_RET_CHECK_GT(x, y) NN_RET_CHECK_OP(x, y, >)
 
-// Ensure that every user of FalseyErrorStream is linked to the
+// Ensure that every user of NnRetCheckErrorStream is linked to the
 // correct instance, using the correct LOG_TAG
 namespace {
 
-// A wrapper around LOG(ERROR) that can be implicitly converted to bool (always evaluates to false).
-// Used to implement stream logging in NN_RET_CHECK.
-class FalseyErrorStream {
-    DISALLOW_COPY_AND_ASSIGN(FalseyErrorStream);
+// A wrapper around an error message that can be implicitly converted to bool (always evaluates to
+// false) and logs via LOG(ERROR) or base::expected (always evaluates to base::unexpected). Used to
+// implement stream logging in NN_RET_CHECK.
+class NnRetCheckErrorStream {
+    DISALLOW_COPY_AND_ASSIGN(NnRetCheckErrorStream);
 
    public:
-    FalseyErrorStream() {}
+    constexpr NnRetCheckErrorStream() = default;
 
     template <typename T>
-    FalseyErrorStream& operator<<(const T& value) {
-        mBuffer << value;
+    NnRetCheckErrorStream& operator<<(const T& value) {
+        (*mBuffer) << value;
         return *this;
     }
 
-    ~FalseyErrorStream() { LOG(ERROR) << mBuffer.str(); }
+    ~NnRetCheckErrorStream() {
+        if (mBuffer.has_value()) {
+            LOG(ERROR) << mBuffer->str();
+        }
+    }
 
-    operator bool() const { return false; }
+    constexpr operator bool() const { return false; }  // NOLINT(google-explicit-constructor)
 
-    operator Result<Version>() const { return error() << mBuffer.str(); }
+    template <typename T, typename E>
+    constexpr operator base::expected<T, E>() {  // NOLINT(google-explicit-constructor)
+        auto result = base::unexpected<E>(std::move(mBuffer)->str());
+        mBuffer.reset();
+        return result;
+    }
 
    private:
-    std::ostringstream mBuffer;
+    std::optional<std::ostringstream> mBuffer = std::ostringstream{};
 };
 
 }  // namespace
 
 }  // namespace android::nn
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPE_UTILS_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_TYPE_UTILS_H

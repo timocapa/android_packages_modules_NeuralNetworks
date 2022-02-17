@@ -17,8 +17,8 @@
 // utilities. LegacyHalUtils.h is a superset of these utilities that includes
 // HAL utilities.
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_LEGACY_UTILS_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_LEGACY_UTILS_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_LEGACY_UTILS_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_LEGACY_UTILS_H
 
 #include <android-base/logging.h>
 #include <nnapi/TypeUtils.h>
@@ -40,7 +40,7 @@ namespace nn {
 const int kNumberOfDataTypes = 16;
 
 // The number of operation types (OperationCode) defined in NeuralNetworksTypes.h.
-const int kNumberOfOperationTypes = 104;
+const int kNumberOfOperationTypes = 106;
 
 #ifdef NN_EXPERIMENTAL_FEATURE
 const int kNumberOfExperimentalOperationTypes = 1;
@@ -66,9 +66,6 @@ const int kOEMCodeBase = 10000;
 #define SHOW_IF_DEBUG(msg) ""
 #endif
 
-// DEPRECATED(b/118737105). Use CHECK.
-#define nnAssert(v) CHECK(v)
-
 #define NN_RETURN_IF_ERROR(expr)                      \
     do {                                              \
         int _errorCode = (expr);                      \
@@ -83,7 +80,11 @@ enum class HalVersion : int32_t {
     V1_1,
     V1_2,
     V1_3,
+    AIDL_V1,
+    AIDL_V2,
     AIDL_UNSTABLE,
+    // TODO(b/207721221): Add AIDL support to TestPartitioning so that LATEST can be set to AIDL
+    //  version.
     LATEST = V1_3,
 };
 
@@ -290,13 +291,13 @@ struct ApiVersion {
     int64_t featureLevel;
 };
 
-constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = Version::ANDROID_OC_MR1,
+constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = kVersionFeatureLevel1,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_1};
-constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = Version::ANDROID_P,
+constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = kVersionFeatureLevel2,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_2};
-constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = Version::ANDROID_Q,
+constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = kVersionFeatureLevel3,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_3};
-constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = Version::ANDROID_R,
+constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = kVersionFeatureLevel4,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_4};
 
 // Utility that measures time period, in nanoseconds, from creation
@@ -319,4 +320,4 @@ struct TimeNanoMeasurer {
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_LEGACY_UTILS_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_LEGACY_UTILS_H

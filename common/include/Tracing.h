@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_TRACING_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_TRACING_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_TRACING_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_TRACING_H
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #define ATRACE_TAG ATRACE_TAG_NNAPI
@@ -159,12 +159,12 @@
 // phase-per-scope and switching phases.
 //
 // Basic trace, one per scope allowed to enforce disjointness
-#define NNTRACE_NAME_1(name) android::ScopedTrace ___tracer_1(ATRACE_TAG, name)
+#define NNTRACE_NAME_1(name) ::android::ScopedTrace ___tracer_1(ATRACE_TAG, name)
 // Switching trace, more than one per scope allowed, translated by
 // systrace_parser.py. This is mainly useful for tracing multiple phases through
 // one function / scope.
-#define NNTRACE_NAME_SWITCH(name)                                      \
-    android::ScopedTrace PASTE(___tracer, __LINE__)(ATRACE_TAG, name); \
+#define NNTRACE_NAME_SWITCH(name)                                        \
+    ::android::ScopedTrace PASTE(___tracer, __LINE__)(ATRACE_TAG, name); \
     (void)___tracer_1  // ensure switch is only used after a basic trace
 
 #else
@@ -178,4 +178,4 @@
 #undef ATRACE_NAME
 #undef ATRACE_CALL
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_TRACING_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_TRACING_H

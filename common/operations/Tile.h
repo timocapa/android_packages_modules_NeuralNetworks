@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_TILE_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_TILE_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TILE_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TILE_H
 
-#include "CpuOperationUtils.h"
+#include "OperationsUtils.h"
 
 namespace android {
 namespace nn {
 namespace tile {
+
+Result<Version> validate(const IOperationValidationContext* context);
 
 bool prepare(const Shape& input, const int32_t* multiples, const Shape& multiplesShape,
              Shape* output);
@@ -33,4 +35,4 @@ bool eval(const uint8_t* inputData, const Shape& inputShape, const int32_t* mult
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_TILE_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TILE_H

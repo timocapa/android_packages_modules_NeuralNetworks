@@ -58,6 +58,7 @@ cc_defaults {
         "libneuralnetworks_generated_test_harness",
         "libtextclassifier_hash_static",
         "neuralnetworks_utils_hal_service",
+        "server_configurable_flags",
     ],
     whole_static_libs: [
         "libcrypto_static",
@@ -67,6 +68,7 @@ cc_defaults {
             shared_libs: [
                 "libandroid",
                 "libnativewindow",
+                "libstatssocket",
             ],
         },
         host: {
@@ -124,6 +126,7 @@ cc_defaults {
     ],
     whole_static_libs: [
         "neuralnetworks_generated_AIDL_V2_example",
+        "neuralnetworks_generated_AIDL_V3_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",
@@ -210,6 +213,7 @@ cc_test {
     target: {
         android: {
             test_config: "AndroidTest_NeuralNetworksTest_static.xml",
+            srcs: ["TestWestworldTelemetry.cpp"],
         },
         host: {
             cflags: [
@@ -228,6 +232,7 @@ cc_test {
         "libneuralnetworks_common",
         "libneuralnetworks_static",
         "neuralnetworks_types",
+        "server_configurable_flags",
     ],
     static_libs: [
         "libneuralnetworks_common_experimental",
@@ -324,11 +329,15 @@ cc_fuzz {
     srcs: [
         "android_fuzzing/DriverFuzzTest.cpp",
     ],
+    header_libs: [
+        "libneuralnetworks_headers",
+    ],
     static_libs: [
-        "libSampleDriver",
         "libneuralnetworks_common",
         "libneuralnetworks_generated_test_harness",
-        "libneuralnetworks_static",
+        "neuralnetworks_canonical_sample_driver",
+        "neuralnetworks_test_utils",
+        "neuralnetworks_types",
     ],
 }
 
@@ -402,6 +411,7 @@ cc_defaults {
     ],
     whole_static_libs: [
         "neuralnetworks_generated_AIDL_V2_example",
+        "neuralnetworks_generated_AIDL_V3_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",
@@ -561,6 +571,12 @@ cc_library_static {
 }
 
 cc_library_static {
+    name: "neuralnetworks_generated_AIDL_V3_example",
+    defaults: ["neuralnetworks_generated_defaults"],
+    srcs: ["generated/spec_AIDL_V3/*.example.cpp"],
+}
+
+cc_library_static {
     name: "neuralnetworks_generated_V1_3_cts_only_example",
     host_supported: true,
     defaults: ["neuralnetworks_float16"],
@@ -674,6 +690,7 @@ cc_test {
         "neuralnetworks_supportlibrary_loader",
     ],
     whole_static_libs: [
+        "neuralnetworks_generated_AIDL_V2_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",

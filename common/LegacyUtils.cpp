@@ -54,6 +54,10 @@ std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion) {
             return os << "HAL version 1.2";
         case HalVersion::V1_3:
             return os << "HAL version 1.3";
+        case HalVersion::AIDL_V1:
+            return os << "HAL version AIDL_V1";
+        case HalVersion::AIDL_V2:
+            return os << "HAL version AIDL_V2";
         case HalVersion::AIDL_UNSTABLE:
             return os << "HAL uses unstable AIDL";
     }
@@ -119,7 +123,7 @@ EntryType tableLookup(const EntryType (&table)[entryCount],
     } else if (code >= kOEMCodeBase && (code - kOEMCodeBase) < entryCountOEM) {
         return tableOEM[code - kOEMCodeBase];
     } else {
-        nnAssert(!"tableLookup: bad code");
+        LOG(FATAL) << "tableLookup: bad code";
         return EntryType();
     }
 }
@@ -129,15 +133,19 @@ static Version convert(HalVersion halVersion) {
         case HalVersion::UNKNOWN:
             break;
         case HalVersion::V1_0:
-            return Version::ANDROID_OC_MR1;
+            return kVersionFeatureLevel1;
         case HalVersion::V1_1:
-            return Version::ANDROID_P;
+            return kVersionFeatureLevel2;
         case HalVersion::V1_2:
-            return Version::ANDROID_Q;
+            return kVersionFeatureLevel3;
         case HalVersion::V1_3:
-            return Version::ANDROID_R;
+            return kVersionFeatureLevel4;
+        case HalVersion::AIDL_V1:
+            return kVersionFeatureLevel5;
+        case HalVersion::AIDL_V2:
+            return kVersionFeatureLevel6;
         case HalVersion::AIDL_UNSTABLE:
-            return Version::ANDROID_S;
+            return kVersionFeatureLevel7;
     }
     LOG(FATAL) << "Cannot convert " << halVersion;
     return {};
@@ -748,7 +756,7 @@ int validateOperation(ANeuralNetworksOperationType opType, uint32_t inputCount,
                                    OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
             } else if (inputType == OperandType::TENSOR_INT32) {
-                // TODO(b/202585778): Add validateHalVersion against AIDL_V2.
+                NN_RETURN_IF_ERROR(validateHalVersion(opType, halVersion, HalVersion::AIDL_V2));
                 inExpectedTypes = {OperandType::TENSOR_INT32, OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_INT32};
             } else {

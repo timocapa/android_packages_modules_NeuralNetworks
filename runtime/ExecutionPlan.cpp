@@ -26,6 +26,7 @@
 #include <OperationsUtils.h>
 #include <TokenHasher.h>
 #include <Tracing.h>
+#include <android-base/logging.h>
 #include <fcntl.h>
 #include <nnapi/IBurst.h>
 #include <sys/stat.h>
@@ -898,7 +899,8 @@ int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
                                           executionPreference, priority);
             if (stepHasDynamicTemporaries) {
                 mHasDynamicTemporaries = true;
-                if (step->getDevice()->getFeatureLevel() < kHalVersionV1_2ToApi.featureLevel) {
+                if (!isCompliantVersion(kHalVersionV1_2ToApi.canonical,
+                                        step->getDevice()->getFeatureLevel())) {
                     // Until HAL 1.2, an Operand with lifetime SUBGRAPH_OUTPUT
                     // must have fully specified dimensions either in the
                     // Operand or in the RequestArgument.  In the case of a
@@ -960,6 +962,7 @@ int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
     findMemoryStepRoles();
 
     mSuccessfulFinish = true;
+    LOG(INFO) << "ExecutionPlan::CompoundBody::finish: compilation finished successfully";
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -1104,6 +1107,10 @@ int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPref
         n = simulateFailureResultCode;
     }
     mSuccessfulFinish = (n == ANEURALNETWORKS_NO_ERROR);
+    if (mSuccessfulFinish) {
+        LOG(INFO) << "ExecutionPlan::SimpleBody::finish: compilation finished successfully on "
+                  << mDevice->getName();
+    }
     return n;
 }
 
@@ -1929,13 +1936,13 @@ ExecutionPlan::Kind ExecutionPlan::forTest_getKind() const {
         case EMPTY:
             return Kind::EMPTY;
         case SIMPLE:
-            nnAssert(mBody);
+            CHECK(mBody);
             return mBody->mSuccessfulFinish ? Kind::SIMPLE : Kind::ERROR;
         case COMPOUND:
-            nnAssert(mBody);
+            CHECK(mBody);
             return mBody->mSuccessfulFinish ? Kind::COMPOUND : Kind::ERROR;
         default:
-            nnAssert(!"unexpected state");
+            LOG(FATAL) << "unexpected state";
             return Kind::ERROR;
     }
 }

@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_CAST_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_CAST_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_CAST_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_CAST_H
 
-#include "CpuOperationUtils.h"
+#include "OperationsUtils.h"
 
 namespace android {
 namespace nn {
 namespace cast {
+
+Result<Version> validate(const IOperationValidationContext* context);
 
 bool prepare(const Shape& input, Shape* output);
 
@@ -32,4 +34,4 @@ bool eval(const uint8_t* inputData, const Shape& inputShape, uint8_t* outputData
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_CAST_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_CAST_H

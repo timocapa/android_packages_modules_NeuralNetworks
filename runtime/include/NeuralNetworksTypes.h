@@ -23,8 +23,8 @@
  * @file NeuralNetworksTypes.h
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_TYPES_H
-#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_TYPES_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_NEURAL_NETWORKS_TYPES_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_NEURAL_NETWORKS_TYPES_H
 
 /******************************************************************
  *
@@ -4688,6 +4688,8 @@ typedef enum {
      * Supported tensor {@link OperandCode}:
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT16}
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT32}
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM} (since NNAPI feature level 7)
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED} (since NNAPI feature level 7)
      *
      * Supported tensor rank: from 1.
      *
@@ -4696,6 +4698,9 @@ typedef enum {
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
+     *      For a {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM} and
+     *      {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED} tensor,
+     *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
      *
      * Available since NNAPI feature level 3.
      */
@@ -5750,6 +5755,93 @@ typedef enum {
      * Available since NNAPI feature level 6.
      */
     ANEURALNETWORKS_PACK = 103,
+
+    // Operations below are available since NNAPI feature level 7.
+
+    /**
+     * Pads a tensor with mirrored values.
+     *
+     * This operator specifies one of two padding modes: REFLECT or SYMMETRIC.
+     * In the case of REFLECT mode, the mirroring excludes the border element
+     * on the padding side.
+     * In the case of SYMMETRIC mode, the mirroring includes the border element
+     * on the padding side.
+     *
+     * For example, if the input is the 1-D tensor `[1, 2, 3]` and the padding
+     * is `[0, 2]` (i.e., pad no elements before the first (and only) dimension,
+     * and two elements after the first (and only) dimension), then:
+     *     - REFLECT mode produces the output `[1, 2, 3, 2, 1]`
+     *     - SYMMETRIC mode produces the output `[1, 2, 3, 3, 2]`
+     *
+     * Supported tensor {@link OperandCode}:
+     * * {@link ANEURALNETWORKS_TENSOR_FLOAT16}
+     * * {@link ANEURALNETWORKS_TENSOR_FLOAT32}
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM}
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED}
+     * * {@link ANEURALNETWORKS_TENSOR_INT32}
+     *
+     * Supported tensor rank: from 1.
+     *
+     * Inputs:
+     * * 0: An n-D tensor, specifying the tensor to be padded.
+     * * 1: A 2-D tensor of {@link ANEURALNETWORKS_TENSOR_INT32}, the paddings
+     *      for each spatial dimension of the input tensor. The shape of the
+     *      tensor must be {rank(input0), 2}.
+     *      padding[i, 0] specifies the number of elements to be padded in the
+     *      front of dimension i.
+     *      padding[i, 1] specifies the number of elements to be padded after the
+     *      end of dimension i.
+     *      Each padding value must be nonnegative.
+     *      In the case of REFLECT mode, each padding value must be less than the
+     *      corresponding dimension.
+     *      In the case of SYMMETRIC mode, each padding value must be less than or
+     *      equal to the corresponding dimension.
+     * * 2: An {@link ANEURALNETWORKS_INT32} scalar, specifying the mode.
+     *      Options are 0:REFLECT and 1:SYMMETRIC.
+     *
+     * Outputs:
+     * * 0: A tensor of the same {@link OperandCode} as input0. The
+     *      output tensor has the same rank as input0, and each
+     *      dimension of the output tensor has the same size as the
+     *      corresponding dimension of the input tensor plus the size
+     *      of the padding:
+     *          output0.dimension[i] =
+     *              padding[i, 0] + input0.dimension[i] + padding[i, 1]
+     *      For a {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM} and
+     *      {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED} tensor,
+     *      the scale and zeroPoint must be the same as input0.
+     *
+     * Available since NNAPI feature level 7.
+     */
+    ANEURALNETWORKS_MIRROR_PAD = 104,
+
+    /**
+     * Reverses a specified dimension of a tensor.
+     *
+     * Supported tensor {@link OperandCode}:
+     * * {@link ANEURALNETWORKS_TENSOR_FLOAT16}
+     * * {@link ANEURALNETWORKS_TENSOR_FLOAT32}
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM}
+     * * {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED}
+     * * {@link ANEURALNETWORKS_TENSOR_INT32}
+     *
+     * Supported tensor rank: up to 8.
+     *
+     * Inputs:
+     * * 0: Input tensor of rank n.
+     * * 1: Axis tensor of type {@link ANEURALNETWORKS_TENSOR_INT32} and shape [1],
+     *      specifying which dimension of the input tensor is to be reversed. The dimension
+     *      must be in the range [0, n).
+     *
+     * Outputs:
+     * * 0: The reversed tensor of the same shape as the input tensor.
+     *      For {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM} and
+     *      {@link ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED} tensors,
+     *      the scales and zeroPoint must be the same as input0.
+     *
+     * Available since NNAPI feature level 7.
+     */
+    ANEURALNETWORKS_REVERSE = 105,
 } OperationCode;
 
 /**
@@ -5877,6 +5969,10 @@ typedef enum {
     ANEURALNETWORKS_FEATURE_LEVEL_5 = 31,
     /** Android NNAPI feature level 6 */
     ANEURALNETWORKS_FEATURE_LEVEL_6 = 1000006,
+    /** Android NNAPI feature level 7 */
+    ANEURALNETWORKS_FEATURE_LEVEL_7 = 1000007,
+    /** Android NNAPI feature level 8 */
+    ANEURALNETWORKS_FEATURE_LEVEL_8 = 1000008,
 } FeatureLevelCode;
 
 /**
@@ -6463,6 +6559,6 @@ typedef struct ANeuralNetworksMemoryDesc ANeuralNetworksMemoryDesc;
 
 __END_DECLS
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_TYPES_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_NEURAL_NETWORKS_TYPES_H
 
 /** @} */

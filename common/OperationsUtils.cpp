@@ -18,14 +18,16 @@
 
 #include "OperationsUtils.h"
 
+#include <android-base/logging.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <sstream>
 #include <vector>
 
-#include "LegacyUtils.h"
-#include "Operations.h"
+#include "ActivationFunctor.h"
+#include "nnapi/Validation.h"
 
 namespace android {
 namespace nn {
@@ -73,6 +75,37 @@ void CalculateActivationRangeImpl(int32_t activation, const Shape& outputShape, 
 
 }  // namespace
 
+std::string IOperationValidationContext::invalidInOutNumberMessage(int expIn, int expOut) const {
+    std::ostringstream os;
+    os << "Invalid number of input operands (" << getNumInputs() << ", expected " << expIn
+       << ") or output operands (" << getNumOutputs() << ", expected " << expOut
+       << ") for operation " << getOperationName();
+    return os.str();
+}
+
+Result<void> IOperationValidationContext::validateOperationOperandTypes(
+        const std::vector<OperandType>& inExpectedTypes,
+        const std::vector<OperandType>& outExpectedInTypes) const {
+    NN_RET_CHECK_EQ(getNumInputs(), inExpectedTypes.size())
+            << "Wrong operand count: expected " << inExpectedTypes.size() << " inputs, got "
+            << getNumInputs() << " inputs";
+    NN_RET_CHECK_EQ(getNumOutputs(), outExpectedInTypes.size())
+            << "Wrong operand count: expected " << outExpectedInTypes.size() << " outputs, got "
+            << getNumOutputs() << " outputs";
+    for (size_t i = 0; i < getNumInputs(); i++) {
+        NN_RET_CHECK_EQ(getInputType(i), inExpectedTypes[i])
+                << "Invalid input tensor type " << getInputType(i) << " for input " << i
+                << ", expected " << inExpectedTypes[i];
+    }
+    for (size_t i = 0; i < getNumOutputs(); i++) {
+        NN_RET_CHECK_EQ(getOutputType(i), outExpectedInTypes[i])
+                << "Invalid output tensor type " << getOutputType(i) << " for input " << i
+                << ", expected " << outExpectedInTypes[i];
+    }
+
+    return {};
+}
+
 bool validateInputTypes(const IOperationValidationContext* context,
                         const std::vector<OperandType>& expectedTypes) {
     return validateOperandTypes(expectedTypes, "input", context->getNumInputs(),
@@ -88,7 +121,7 @@ bool validateOutputTypes(const IOperationValidationContext* context,
 
 bool validateVersion(const IOperationValidationContext* context, Version contextVersion,
                      Version minSupportedVersion) {
-    if (contextVersion < minSupportedVersion) {
+    if (!isCompliantVersion(minSupportedVersion, contextVersion)) {
         std::ostringstream message;
         message << "Operation " << context->getOperationName() << " with inputs {";
         for (uint32_t i = 0, n = context->getNumInputs(); i < n; ++i) {
@@ -141,9 +174,9 @@ uint32_t getNumberOfElements(const Shape& shape) {
 
 uint32_t getNumberOfElements(const Shape& shape, size_t firstAxisInclusive,
                              size_t lastAxisExclusive) {
-    nnAssert(0 <= firstAxisInclusive);
-    nnAssert(firstAxisInclusive <= lastAxisExclusive);
-    nnAssert(lastAxisExclusive <= shape.dimensions.size());
+    CHECK_LE(0u, firstAxisInclusive);
+    CHECK_LE(firstAxisInclusive, lastAxisExclusive);
+    CHECK_LE(lastAxisExclusive, shape.dimensions.size());
     uint32_t count = 1;
     for (size_t i = firstAxisInclusive; i < lastAxisExclusive; i++) {
         count *= shape.dimensions[i];
@@ -156,7 +189,7 @@ uint32_t getNumberOfDimensions(const Shape& shape) {
 }
 
 uint32_t getSizeOfDimension(const Shape& shape, uint32_t dimensionIdx) {
-    nnAssert(0 <= dimensionIdx && dimensionIdx < shape.dimensions.size());
+    CHECK(0 <= dimensionIdx && dimensionIdx < shape.dimensions.size());
     return shape.dimensions[dimensionIdx];
 }
 

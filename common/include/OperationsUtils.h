@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_UTILS_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_UTILS_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UTILS_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UTILS_H
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "nnapi/TypeUtils.h"
@@ -33,6 +34,131 @@ namespace nn {
 
 // DEPRECATED. Use NN_RET_CHECK_EQ instead.
 #define NN_CHECK_EQ(x, y) NN_RET_CHECK_EQ(x, y)
+
+#ifdef NN_EXPERIMENTAL_FEATURE
+#define NN_FOR_EACH_EXPERIMENTAL_OPERATION_IF_ENABLED(CALL) CALL(DENSIFY)
+#else  // NN_EXPERIMENTAL_FEATURE
+#define NN_FOR_EACH_EXPERIMENTAL_OPERATION_IF_ENABLED(CALL)
+#endif  // NN_EXPERIMENTAL_FEATURE
+
+// TODO(b/213798075): Generate this operation list in a macro with the API generator.
+#define NN_FOR_EACH_OPERATION(CALL)    \
+    CALL(ADD)                          \
+    CALL(AVERAGE_POOL_2D)              \
+    CALL(CONCATENATION)                \
+    CALL(CONV_2D)                      \
+    CALL(DEPTHWISE_CONV_2D)            \
+    CALL(DEPTH_TO_SPACE)               \
+    CALL(DEQUANTIZE)                   \
+    CALL(EMBEDDING_LOOKUP)             \
+    CALL(FLOOR)                        \
+    CALL(FULLY_CONNECTED)              \
+    CALL(HASHTABLE_LOOKUP)             \
+    CALL(L2_NORMALIZATION)             \
+    CALL(L2_POOL_2D)                   \
+    CALL(LOCAL_RESPONSE_NORMALIZATION) \
+    CALL(LOGISTIC)                     \
+    CALL(LSH_PROJECTION)               \
+    CALL(LSTM)                         \
+    CALL(MAX_POOL_2D)                  \
+    CALL(MUL)                          \
+    CALL(RELU)                         \
+    CALL(RELU1)                        \
+    CALL(RELU6)                        \
+    CALL(RESHAPE)                      \
+    CALL(RESIZE_BILINEAR)              \
+    CALL(RNN)                          \
+    CALL(SOFTMAX)                      \
+    CALL(SPACE_TO_DEPTH)               \
+    CALL(SVDF)                         \
+    CALL(TANH)                         \
+    CALL(BATCH_TO_SPACE_ND)            \
+    CALL(DIV)                          \
+    CALL(MEAN)                         \
+    CALL(PAD)                          \
+    CALL(SPACE_TO_BATCH_ND)            \
+    CALL(SQUEEZE)                      \
+    CALL(STRIDED_SLICE)                \
+    CALL(SUB)                          \
+    CALL(TRANSPOSE)                    \
+    CALL(ABS)                          \
+    CALL(ARGMAX)                       \
+    CALL(ARGMIN)                       \
+    CALL(AXIS_ALIGNED_BBOX_TRANSFORM)  \
+    CALL(BIDIRECTIONAL_SEQUENCE_LSTM)  \
+    CALL(BIDIRECTIONAL_SEQUENCE_RNN)   \
+    CALL(BOX_WITH_NMS_LIMIT)           \
+    CALL(CAST)                         \
+    CALL(CHANNEL_SHUFFLE)              \
+    CALL(DETECTION_POSTPROCESSING)     \
+    CALL(EQUAL)                        \
+    CALL(EXP)                          \
+    CALL(EXPAND_DIMS)                  \
+    CALL(GATHER)                       \
+    CALL(GENERATE_PROPOSALS)           \
+    CALL(GREATER)                      \
+    CALL(GREATER_EQUAL)                \
+    CALL(GROUPED_CONV_2D)              \
+    CALL(HEATMAP_MAX_KEYPOINT)         \
+    CALL(INSTANCE_NORMALIZATION)       \
+    CALL(LESS)                         \
+    CALL(LESS_EQUAL)                   \
+    CALL(LOG)                          \
+    CALL(LOGICAL_AND)                  \
+    CALL(LOGICAL_NOT)                  \
+    CALL(LOGICAL_OR)                   \
+    CALL(LOG_SOFTMAX)                  \
+    CALL(MAXIMUM)                      \
+    CALL(MINIMUM)                      \
+    CALL(NEG)                          \
+    CALL(NOT_EQUAL)                    \
+    CALL(PAD_V2)                       \
+    CALL(POW)                          \
+    CALL(PRELU)                        \
+    CALL(QUANTIZE)                     \
+    CALL(QUANTIZED_16BIT_LSTM)         \
+    CALL(RANDOM_MULTINOMIAL)           \
+    CALL(REDUCE_ALL)                   \
+    CALL(REDUCE_ANY)                   \
+    CALL(REDUCE_MAX)                   \
+    CALL(REDUCE_MIN)                   \
+    CALL(REDUCE_PROD)                  \
+    CALL(REDUCE_SUM)                   \
+    CALL(ROI_ALIGN)                    \
+    CALL(ROI_POOLING)                  \
+    CALL(RSQRT)                        \
+    CALL(SELECT)                       \
+    CALL(SIN)                          \
+    CALL(SLICE)                        \
+    CALL(SPLIT)                        \
+    CALL(SQRT)                         \
+    CALL(TILE)                         \
+    CALL(TOPK_V2)                      \
+    CALL(TRANSPOSE_CONV_2D)            \
+    CALL(UNIDIRECTIONAL_SEQUENCE_LSTM) \
+    CALL(UNIDIRECTIONAL_SEQUENCE_RNN)  \
+    CALL(RESIZE_NEAREST_NEIGHBOR)      \
+    CALL(QUANTIZED_LSTM)               \
+    CALL(IF)                           \
+    CALL(WHILE)                        \
+    CALL(ELU)                          \
+    CALL(HARD_SWISH)                   \
+    CALL(FILL)                         \
+    CALL(RANK)                         \
+    CALL(BATCH_MATMUL)                 \
+    CALL(PACK)                         \
+    CALL(MIRROR_PAD)                   \
+    CALL(REVERSE)                      \
+    CALL(OEM_OPERATION)                \
+    NN_FOR_EACH_EXPERIMENTAL_OPERATION_IF_ENABLED(CALL)
+
+#define NN_VALIDATION_FUNCTION_NAME(opType) validate_##opType
+
+#define NN_VALIDATION_FUNCTION_SIGNATURE(opType) \
+    Result<Version> NN_VALIDATION_FUNCTION_NAME(opType)(const IOperationValidationContext* context)
+
+#define NN_DEFINE_VALIDATION_FUNCTION(opType, validate) \
+    NN_VALIDATION_FUNCTION_SIGNATURE(opType) { return validate(context); }
 
 // An 8-bit boolean type (sizeof(bool) is implementation-defined).
 typedef uint8_t bool8;
@@ -67,6 +193,12 @@ class IOperationValidationContext {
     virtual uint32_t getNumOutputs() const = 0;
     virtual OperandType getOutputType(uint32_t index) const = 0;
     virtual Shape getOutputShape(uint32_t index) const = 0;
+
+    std::string invalidInOutNumberMessage(int expIn, int expOut) const;
+
+    Result<void> validateOperationOperandTypes(
+            const std::vector<OperandType>& inExpectedTypes,
+            const std::vector<OperandType>& outExpectedInTypes) const;
 };
 
 // Provides inputs and outputs during operation execution.
@@ -161,27 +293,31 @@ inline int32_t computeOutSizeTransposeConv(int32_t imageSize, int32_t filterSize
     return imageSize * stride + filterSize - stride - paddingHead - paddingTail;
 }
 
-__wur bool QuantizeMultiplier(double double_multiplier, int32_t* quantized_multiplier,
-                              int32_t* shift);
+[[nodiscard]] bool QuantizeMultiplier(double double_multiplier, int32_t* quantized_multiplier,
+                                      int32_t* shift);
 
-__wur bool QuantizeMultiplierSmallerThanOne(double double_multiplier, int32_t* quantized_multiplier,
-                                            int32_t* right_shift);
+[[nodiscard]] bool QuantizeMultiplierSmallerThanOne(double double_multiplier,
+                                                    int32_t* quantized_multiplier,
+                                                    int32_t* right_shift);
 
 // Same as QuantizeMultiplierSmallerThanOne but returns left shift (i.e. negated
 // right shift), so that it has the same interface as
 // QuantizeMultiplierGreaterThanOne and QuantizeMultiplier functions.
-__wur bool QuantizeMultiplierSmallerThanOneExp(double double_multiplier,
-                                               int32_t* quantized_multiplier, int32_t* left_shift);
+[[nodiscard]] bool QuantizeMultiplierSmallerThanOneExp(double double_multiplier,
+                                                       int32_t* quantized_multiplier,
+                                                       int32_t* left_shift);
 
-__wur bool QuantizeMultiplierGreaterThanOne(double double_multiplier, int32_t* quantized_multiplier,
-                                            int* left_shift);
+[[nodiscard]] bool QuantizeMultiplierGreaterThanOne(double double_multiplier,
+                                                    int32_t* quantized_multiplier, int* left_shift);
 
-__wur bool GetQuantizedConvolutionMultipler(const Shape& inputShape, const Shape& filterShape,
-                                            const Shape& biasShape, const Shape& outputShape,
-                                            double* multiplier);
+[[nodiscard]] bool GetQuantizedConvolutionMultipler(const Shape& inputShape,
+                                                    const Shape& filterShape,
+                                                    const Shape& biasShape,
+                                                    const Shape& outputShape, double* multiplier);
 
-__wur bool GetQuantizedConvolutionMultiplier(const Shape& inputShape, const Shape& filterShape,
-                                             const Shape& outputShape, double* multiplier);
+[[nodiscard]] bool GetQuantizedConvolutionMultiplier(const Shape& inputShape,
+                                                     const Shape& filterShape,
+                                                     const Shape& outputShape, double* multiplier);
 
 void CalculateActivationRangeUint8(int32_t activation, const Shape& outputShape, int32_t* act_min,
                                    int32_t* act_max);
@@ -398,4 +534,4 @@ inline int8_t saturateCast<int8_t>(int32_t val) {
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_UTILS_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UTILS_H

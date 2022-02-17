@@ -16,6 +16,8 @@
 
 #define LOG_TAG "Operations"
 
+#include "Quantize.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -27,15 +29,9 @@
 namespace android {
 namespace nn {
 namespace quantize {
-
-constexpr uint32_t kNumInputs = 1;
-constexpr uint32_t kInputTensor = 0;
-
-constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
-
 namespace {
 
+// The quantization formula also appears in Elementwise.cpp.
 template <typename T>
 bool quantizeToQuant8(const T* inputData, uint8_t* outputData, const Shape& outputShape) {
     NNTRACE_COMP("quantizeToQuant8");
@@ -48,6 +44,7 @@ bool quantizeToQuant8(const T* inputData, uint8_t* outputData, const Shape& outp
     return true;
 }
 
+// The quantization formula also appears in Elementwise.cpp.
 template <typename T>
 bool quantizeToQuant8Signed(const T* inputData, int8_t* outputData, const Shape& outputShape) {
     NNTRACE_COMP("quantizeToQuant8Signed");
@@ -62,26 +59,6 @@ bool quantizeToQuant8Signed(const T* inputData, int8_t* outputData, const Shape&
 }
 
 }  // namespace
-
-Result<Version> validate(const IOperationValidationContext* context) {
-    NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
-    NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
-
-    const OperandType inputType = context->getInputType(kInputTensor);
-    const OperandType outputType = context->getOutputType(kOutputTensor);
-
-    NN_RET_CHECK(inputType == OperandType::TENSOR_FLOAT16 ||
-                 inputType == OperandType::TENSOR_FLOAT32)
-            << "Unsupported input operand type for QUANTIZE op: " << inputType;
-    NN_RET_CHECK(outputType == OperandType::TENSOR_QUANT8_ASYMM ||
-                 outputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED)
-            << "Unsupported output operand type for QUANTIZE op: " << outputType;
-    if (outputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
-        return Version::ANDROID_R;
-    } else {
-        return Version::ANDROID_Q;
-    }
-}
 
 bool prepare(IOperationExecutionContext* context) {
     const Shape& input = context->getInputShape(kInputTensor);

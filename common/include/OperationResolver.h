@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATION_RESOLVER_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATION_RESOLVER_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATION_RESOLVER_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATION_RESOLVER_H
 
 #include <utility>
 
@@ -30,6 +30,8 @@ struct OperationRegistration {
     const char* name;
 
     // Validates operand types, shapes, and any values known during graph creation.
+    // TODO(b/213938830): operation validation dispatch is duplicated and does not handle extension
+    // types.
     std::function<Result<Version>(const IOperationValidationContext*)> validate;
 
     // prepare is called when the inputs this operation depends on have been
@@ -91,7 +93,7 @@ class BuiltinOperationResolver : public IOperationResolver {
     const OperationRegistration* findOperation(OperationType operationType) const override;
 
     // The number of operation types (OperationCode) defined in NeuralNetworksTypes.h.
-    static constexpr int kNumberOfOperationTypes = 104;
+    static constexpr int kNumberOfOperationTypes = 106;
 
 #ifdef NN_EXPERIMENTAL_FEATURE
     // The number of experimental operation types (ANeuralNetworksExperimentalOperationCode) defined
@@ -155,7 +157,10 @@ class BuiltinOperationResolver : public IOperationResolver {
     }
 #endif
 
+#define NN_OPERATION_IS_NOT_IMPLEMENTED(identifier) \
+    const OperationRegistration* register_##identifier() { return nullptr; }
+
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATION_RESOLVER_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATION_RESOLVER_H

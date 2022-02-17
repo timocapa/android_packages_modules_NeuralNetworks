@@ -16,36 +16,71 @@
 
 #define LOG_TAG "ServerFlag"
 
-#include <FlagUtils.h>
+#include "ServerFlag.h"
+
 #include <android-base/logging.h>
+#include <android-base/parsebool.h>
 #include <android-base/parseint.h>
-#include <server_configurable_flags/get_flags.h>
+#include <nnapi/Types.h>
 #include <stdint.h>
 
 #include <string>
 
-namespace android {
-namespace nn {
+#if !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+#include <server_configurable_flags/get_flags.h>
+#endif  // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
 
-namespace {
-int64_t getServerFlagInt(std::string flagName, int64_t defaultValue, int64_t minValue,
-                         int64_t maxValue) {
-    int64_t flagValue = defaultValue;
-    if (!android::base::ParseInt(
-                server_configurable_flags::GetServerConfigurableFlag(
-                        std::string(kExprCategoryName), flagName, std::to_string(defaultValue)),
-                &flagValue, minValue, maxValue)) {
-        LOG(WARNING) << "Failed to parse flag " << flagName << " to int type. errno: " << errno;
+namespace android::nn {
+
+#if !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+int64_t getServerFeatureLevelFlag() {
+    const std::string featureLevelString = server_configurable_flags::GetServerConfigurableFlag(
+            kExprCategoryName, kCurrentFeatureLevelFlagName,
+            std::to_string(kDefaultFeatureLevelNum));
+
+    int64_t featureLevel = kDefaultFeatureLevelNum;
+    const bool success = base::ParseInt(featureLevelString, &featureLevel, kMinFeatureLevelNum,
+                                        kMaxFeatureLevelNum);
+    if (!success) {
+        LOG(WARNING) << "Failed to parse result of GetServerConfigurableFlag, errno=" << errno;
     }
-    return flagValue;
+    return featureLevel;
 }
 
-}  // namespace
+bool getServerTelemetryEnableFlag() {
+    const std::string telemetryEnabledString = server_configurable_flags::GetServerConfigurableFlag(
+            kExprCategoryName, kTelemetryEnableFlagName,
+            std::to_string(kDefaultTelemetryEnableValue));
 
-int64_t _getServerFeatureLevelFlag() {
-    return getServerFlagInt(kCurrentFeatureLevelFlagName, kDefaultFeatureLevelNum,
-                            kMinFeatureLevelNum, kMaxFeatureLevelNum);
+    const auto parseBoolResult = base::ParseBool(telemetryEnabledString);
+    switch (parseBoolResult) {
+        case base::ParseBoolResult::kError:
+            LOG(WARNING) << "Failed to parse result of GetServerConfigurableFlag";
+            return kDefaultTelemetryEnableValue;
+        case base::ParseBoolResult::kFalse:
+            return false;
+        case base::ParseBoolResult::kTrue:
+            return true;
+    }
+    LOG(WARNING) << "Unrecognized return from base::ParseBool: "
+                 << static_cast<int32_t>(parseBoolResult);
+    return kDefaultTelemetryEnableValue;
+}
+#endif  // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+
+Version serverFeatureLevelToVersion(int64_t serverFeatureLevel) {
+    Version version;
+    switch (serverFeatureLevel) {
+        case 5:
+            return kVersionFeatureLevel5;
+        case 6:
+            return kVersionFeatureLevel6;
+        case 7:
+            return kVersionFeatureLevel7;
+        default:
+            LOG(FATAL) << "Invalid feature level flag value " << serverFeatureLevel;
+            return {};
+    }
 }
 
-}  // namespace nn
-}  // namespace android
+}  // namespace android::nn

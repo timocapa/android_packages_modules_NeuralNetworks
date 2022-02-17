@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H
 
 #include <algorithm>
 #include <cmath>
@@ -27,6 +27,11 @@
 
 namespace android {
 namespace nn {
+namespace bidirectional_sequence_lstm {
+
+Result<Version> validate(const IOperationValidationContext* context);
+
+}  // namespace bidirectional_sequence_lstm
 
 struct RunTimeOperandInfo;
 
@@ -240,4 +245,4 @@ class BidirectionalSequenceLSTM {
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_LSTM_H

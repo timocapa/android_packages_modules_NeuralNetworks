@@ -22,6 +22,7 @@
 #include <LegacyUtils.h>
 #include <MetaModel.h>
 #include <Tracing.h>
+#include <android-base/properties.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IDevice.h>
 #include <nnapi/IExecution.h>
@@ -35,15 +36,16 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "ExecutionCallback.h"
-#include "FeatureLevel.h"
 #include "Memory.h"
 #include "ModelArgumentInfo.h"
+#include "ServerFlag.h"
 #include "TypeManager.h"
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
@@ -55,8 +57,47 @@
 #include "AppInfoFetcher.h"
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
+#ifdef NN_EXPERIMENTAL_FEATURE
+#include "NeuralNetworksExperimentalFeatures.h"
+#endif  // NN_EXPERIMENTAL_FEATURE
+
 namespace android {
 namespace nn {
+namespace {
+
+Version getRuntimeFeatureLevelVersionHelper() {
+#if defined(NN_EXPERIMENTAL_FEATURE) && defined(NN_COMPATIBILITY_LIBRARY_BUILD)
+#error "NN_EXPERIMENTAL_FEATURE is not supported when NN_COMPATIBILITY_LIBRARY_BUILD is defined"
+#elif defined(NN_EXPERIMENTAL_FEATURE)
+    auto version = kVersionFeatureLevelExperimental;
+    // Enable "runtimeOnlyFeatures" to indicate that the runtime feature level version supports
+    // features that are only available in the runtime.
+    version.runtimeOnlyFeatures = true;
+#elif defined(NN_COMPATIBILITY_LIBRARY_BUILD)
+    auto version = serverFeatureLevelToVersion(kMaxFeatureLevelNum);
+#else   // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+    auto version = serverFeatureLevelToVersion(getServerFeatureLevelFlag());
+    // Enable "runtimeOnlyFeatures" to indicate that the runtime feature level version supports
+    // features that are only available in the runtime.
+    version.runtimeOnlyFeatures = true;
+#endif  // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+    return version;
+}
+
+Version getRuntimeFeatureLevelVersion() {
+    static const Version version = getRuntimeFeatureLevelVersionHelper();
+    return version;
+}
+
+bool getWhetherPlatformTelemetryIsEnabled() {
+#if !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+    return getServerTelemetryEnableFlag();
+#else   // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+    return false;
+#endif  // !defined(NN_COMPATIBILITY_LIBRARY_BUILD) && !defined(NN_EXPERIMENTAL_FEATURE)
+}
+
+}  // namespace
 
 // A Device with actual underlying driver
 class DriverDevice : public Device {
@@ -70,7 +111,7 @@ class DriverDevice : public Device {
 
     const std::string& getName() const override { return kInterface->getName(); }
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
-    int64_t getFeatureLevel() const override;
+    Version getFeatureLevel() const override { return kInterface->getFeatureLevel(); }
     int32_t getType() const override { return static_cast<int32_t>(kInterface->getType()); }
     bool isUpdatable() const override { return kIsUpdatable; }
     const std::vector<Extension>& getSupportedExtensions() const override {
@@ -173,7 +214,7 @@ class DriverPreparedModel : public RuntimePreparedModel {
     }
 
     MemoryPreference getMemoryPreference() const override {
-        if (mDevice->getFeatureLevel() >= ANEURALNETWORKS_FEATURE_LEVEL_5) {
+        if (isCompliantVersion(kVersionFeatureLevel5, mDevice->getFeatureLevel())) {
             return {kDefaultRequestMemoryAlignment, kDefaultRequestMemoryPadding};
         } else {
             // We are not able to pass memory padding information to HIDL drivers, so return the
@@ -191,7 +232,7 @@ class DriverExecution : public RuntimeExecution {
    public:
     DriverExecution(SharedExecution execution, Request request,
                     std::vector<const RuntimeMemory*> memories, MeasureTiming measure,
-                    OptionalDuration loopTimeoutDuration, int64_t deviceFeatureLevel)
+                    OptionalDuration loopTimeoutDuration, Version deviceFeatureLevel)
         : kExecution(std::move(execution)),
           kRequest(std::move(request)),
           kMemories(std::move(memories)),
@@ -219,7 +260,7 @@ class DriverExecution : public RuntimeExecution {
     mutable std::map<const IBurst*, SharedExecution> mCachedBurstExecutions;
 
     // For fenced execution.
-    const int64_t kDeviceFeatureLevel;
+    const Version kDeviceFeatureLevel;
 };
 
 DriverDevice::DriverDevice(SharedDevice device, bool isUpdatable)
@@ -242,27 +283,30 @@ std::shared_ptr<DriverDevice> DriverDevice::create(SharedDevice device, bool isU
     return std::make_shared<DriverDevice>(std::move(device), isUpdatable);
 }
 
-int64_t DriverDevice::getFeatureLevel() const {
-    Version featureLevel = kInterface->getFeatureLevel();
-    switch (featureLevel) {
-        case Version::ANDROID_OC_MR1:
+int64_t DeviceManager::versionToFeatureLevel(Version::Level versionLevel) {
+    switch (versionLevel) {
+        case Version::Level::FEATURE_LEVEL_1:
             return ANEURALNETWORKS_FEATURE_LEVEL_1;
-        case Version::ANDROID_P:
+        case Version::Level::FEATURE_LEVEL_2:
             return ANEURALNETWORKS_FEATURE_LEVEL_2;
-        case Version::ANDROID_Q:
+        case Version::Level::FEATURE_LEVEL_3:
             return ANEURALNETWORKS_FEATURE_LEVEL_3;
-        case Version::ANDROID_R:
+        case Version::Level::FEATURE_LEVEL_4:
             return ANEURALNETWORKS_FEATURE_LEVEL_4;
-        case Version::ANDROID_S:
+        case Version::Level::FEATURE_LEVEL_5:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
-        case Version::FEATURE_LEVEL_6:
+        case Version::Level::FEATURE_LEVEL_6:
             return ANEURALNETWORKS_FEATURE_LEVEL_6;
+        case Version::Level::FEATURE_LEVEL_7:
+            return ANEURALNETWORKS_FEATURE_LEVEL_7;
+        case Version::Level::FEATURE_LEVEL_8:
+            return ANEURALNETWORKS_FEATURE_LEVEL_8;
 #ifdef NN_EXPERIMENTAL_FEATURE
-        case Version::EXPERIMENTAL:
-            break;
+        case Version::Level::FEATURE_LEVEL_EXPERIMENTAL:
+            return ANEURALNETWORKS_FEATURE_LEVEL_EXPERIMENTAL;
 #endif  // NN_EXPERIMENTAL_FEATURE
     }
-    LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
+    LOG(FATAL) << "Unrecognized version " << versionLevel;
     return -1;
 }
 
@@ -602,7 +646,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     SyncFence syncFence = SyncFence::createAsSignaled();
     ExecuteFencedInfoCallback executeFencedInfoCallback = nullptr;
     Timing timing = {};
-    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel) {
+    if (isCompliantVersion(kHalVersionV1_3ToApi.canonical, mDevice->getFeatureLevel())) {
         auto result = mPreparedModel->executeFenced(request, waitForHandles, measure, deadline,
                                                     loopTimeoutDuration, timeoutDurationAfterFence);
         if (!result.ok()) {
@@ -740,7 +784,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverExecution::compute
     SyncFence syncFence = SyncFence::createAsSignaled();
     ExecuteFencedInfoCallback executeFencedInfoCallback = nullptr;
     Timing timing = {};
-    if (kDeviceFeatureLevel >= kHalVersionV1_3ToApi.featureLevel) {
+    if (isCompliantVersion(kHalVersionV1_3ToApi.canonical, kDeviceFeatureLevel)) {
         auto result =
                 kExecution->computeFenced(waitForHandles, deadline, timeoutDurationAfterFence);
         if (!result.ok()) {
@@ -835,7 +879,7 @@ class CpuDevice : public Device {
 
     const std::string& getName() const override { return kName; }
     const std::string& getVersionString() const override { return kVersionString; }
-    int64_t getFeatureLevel() const override { return kFeatureLevel; }
+    Version getFeatureLevel() const override { return kVersion; }
     int32_t getType() const override { return ANEURALNETWORKS_DEVICE_CPU; }
     bool isUpdatable() const override { return false; }
     const std::vector<Extension>& getSupportedExtensions() const override {
@@ -870,7 +914,7 @@ class CpuDevice : public Device {
 
    private:
     CpuDevice() = default;
-    const int64_t kFeatureLevel = kCurrentNNAPIRuntimeFeatureLevel;
+    const Version kVersion = getRuntimeFeatureLevelVersion();
     const std::string kName = "nnapi-reference";
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const std::string kVersionString = build::GetBuildNumber();
@@ -976,6 +1020,17 @@ std::vector<bool> CpuDevice::getSupportedOperations(const MetaModel& metaModel) 
     return result;
 }
 
+template <typename Type>
+static Result<void> validateAndCheckCompliance(const Type& object) {
+    const auto version = NN_TRY(validate(object));
+    if (!isCompliantVersion(version, DeviceManager::get()->getRuntimeVersion())) {
+        return NN_ERROR() << "Object than is newer what is allowed. Version needed: " << version
+                          << ", current runtime version supported: "
+                          << DeviceManager::get()->getRuntimeVersion();
+    }
+    return {};
+}
+
 std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
         const OptionalTimePoint& deadline, const CacheInfo& /*cacheInfo*/,
@@ -984,15 +1039,15 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuDevice::prepareModel(
             << "Should never call prepareModel with cache information on CpuDevice";
 
     const Model model = makeModel();
-    if (auto result = validate(model); !result.ok()) {
+    if (auto result = validateAndCheckCompliance(model); !result.ok()) {
         LOG(ERROR) << "Invalid Model: " << result.error();
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
-    if (auto result = validate(preference); !result.ok()) {
+    if (auto result = validateAndCheckCompliance(preference); !result.ok()) {
         LOG(ERROR) << "Invalid ExecutionPreference: " << result.error();
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
-    if (auto result = validate(priority); !result.ok()) {
+    if (auto result = validateAndCheckCompliance(priority); !result.ok()) {
         LOG(ERROR) << "Invalid Priority: " << result.error();
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
@@ -1216,6 +1271,10 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> CpuExecution::computeFen
     return {result, -1, nullptr, timing};
 }
 
+int64_t DeviceManager::getRuntimeFeatureLevel() const {
+    return versionToFeatureLevel(mRuntimeVersion.level);
+}
+
 DeviceManager* DeviceManager::get() {
     static DeviceManager manager;
     return &manager;
@@ -1268,10 +1327,28 @@ std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
 void DeviceManager::findAvailableDevices() {
     VLOG(MANAGER) << "findAvailableDevices";
 
+#ifdef NN_DEBUGGABLE
+    // debug.nn.enabled-devices defines a regex pattern. For all available driver devices, only the
+    // ones with name matching the pattern are enabled. Driver devices with unmatched names are
+    // ignored. If this property is not set, all available driver devices are enabled by default.
+    // This filter only applies to driver devices. nnapi-reference is always enabled.
+    std::string patternStr = base::GetProperty("debug.nn.enabled-devices", ".*");
+    LOG(INFO) << "Enabled devices: " << patternStr;
+    const std::regex pattern(patternStr);
+#endif  // NN_DEBUGGABLE
+
     // register driver devices
     auto driverDevices = getDriverDevices();
     for (auto& driverDevice : driverDevices) {
-        VLOG(MANAGER) << "Found interface " << driverDevice->getName();
+#ifdef NN_DEBUGGABLE
+        if (!std::regex_match(driverDevice->getName(), pattern)) {
+            LOG(INFO) << "Ignored interface " << driverDevice->getName()
+                      << " (version = " << driverDevice->getVersionString() << ")";
+            continue;
+        }
+#endif  // NN_DEBUGGABLE
+        LOG(INFO) << "Found interface " << driverDevice->getName()
+                  << " (version = " << driverDevice->getVersionString() << ")";
         mDevices.push_back(std::move(driverDevice));
     }
 
@@ -1290,6 +1367,8 @@ void DeviceManager::registerDevice(const SharedDevice& device) {
 
 DeviceManager::DeviceManager() {
     VLOG(MANAGER) << "DeviceManager::DeviceManager";
+    mRuntimeVersion = getRuntimeFeatureLevelVersion();
+    mIsPlatformTelemetryEnabled = getWhetherPlatformTelemetryIsEnabled();
     findAvailableDevices();
 #ifdef NN_DEBUGGABLE
     mStrictSlicing = (getProp("debug.nn.strict-slicing") != 0);

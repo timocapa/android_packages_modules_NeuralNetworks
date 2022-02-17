@@ -14,18 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_DENSIFY_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_DENSIFY_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_DENSIFY_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_DENSIFY_H
 
 #include <vector>
 
-#include "LegacyUtils.h"
-#include "OperationResolver.h"
 #include "OperationsUtils.h"
 
 namespace android {
+
+class IOperationExecutionContext;
+
 namespace nn {
 namespace densify_op {
+
+constexpr uint32_t kMinNumInputs = 5;
+constexpr uint32_t kInputTensor = 0;
+constexpr uint32_t kInputTravOrder = 1;
+constexpr uint32_t kInputBlockMap = 2;
+constexpr uint32_t kInputDimFormat = 3;
+constexpr uint32_t kInputDimensions = 4;
+constexpr uint32_t kInputArrSeg = 5;
+constexpr uint32_t kInputArrIdx = 6;
+constexpr uint32_t kNumOutputs = 1;
+constexpr uint32_t kOutputTensor = 0;
+constexpr int32_t DENSE = 0;
+constexpr int32_t SPARSE_CSR = 1;
 
 /**
  * getFlattenedIndex:
@@ -96,4 +110,4 @@ bool execute(IOperationExecutionContext* context);
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_DENSIFY_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_DENSIFY_H

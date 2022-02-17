@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_OPERATION_TYPES_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_OPERATION_TYPES_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_OPERATION_TYPES_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_OPERATION_TYPES_H
 
 namespace android::nn {
 
@@ -32,6 +32,8 @@ enum class OperationType {
 %insert Operation_1.3
 
 %insert Operation_fl6
+
+%insert Operation_fl7
 
     /**
      * DEPRECATED. Since HAL version 1.2, extensions are the preferred
@@ -134,4 +136,4 @@ enum class OperationType {
 
 }  // namespace android::nn
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_OPERATION_TYPES_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_NNAPI_OPERATION_TYPES_H

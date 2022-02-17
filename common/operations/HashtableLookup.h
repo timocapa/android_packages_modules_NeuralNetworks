@@ -14,15 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
-#define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
 
 #include <vector>
 
+#include "OperationsUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
+namespace hashtable_lookup {
+
+Result<Version> validate(const IOperationValidationContext* context);
+
+}  // namespace hashtable_lookup
 
 struct RunTimeOperandInfo;
 
@@ -51,4 +57,4 @@ class HashtableLookup {
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_HASHTABLE_LOOKUP_H
