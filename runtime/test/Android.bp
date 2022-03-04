@@ -182,6 +182,7 @@ cc_defaults {
         "TestPartitioning.cpp",
         "TestPartitioningRandom.cpp",
         "TestRemoveDefaultArguments.cpp",
+        "TestServerFlag.cpp",
         "TestTelemetry.cpp",
         "fibonacci_extension/FibonacciDriver.cpp",
         "fibonacci_extension/FibonacciExtensionTest.cpp",
@@ -691,11 +692,11 @@ cc_test {
     ],
     whole_static_libs: [
         "neuralnetworks_generated_AIDL_V2_example",
+        "neuralnetworks_generated_AIDL_V3_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",
-        "neuralnetworks_generated_V1_3_cts_only_example",
-        "neuralnetworks_generated_V1_3_example",
+        "neuralnetworks_generated_V1_3_example", // TODO (b/209655430): Decide if need to add "neuralnetworks_generated_V1_3_cts_only_example".
     ],
     include_dirs: [
         "packages/modules/NeuralNetworks/runtime/include/",
