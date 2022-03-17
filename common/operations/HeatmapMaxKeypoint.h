@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_HEATMAP_MAX_KEYPOINT_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_HEATMAP_MAX_KEYPOINT_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::heatmap_max_keypoint {
 
@@ -31,8 +31,6 @@ constexpr uint32_t kLayoutScalar = 2;
 constexpr uint32_t kNumOutputs = 2;
 constexpr uint32_t kOutputScoreTensor = 0;
 constexpr uint32_t kOutputKeypointTensor = 1;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::heatmap_max_keypoint
 

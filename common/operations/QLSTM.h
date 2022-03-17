@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_QLSTM_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_QLSTM_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::qlstm {
 
@@ -87,8 +87,6 @@ constexpr uint32_t kNumOutputs = 3;
 constexpr uint32_t kOutputStateOutTensor = 0;
 constexpr uint32_t kCellStateOutTensor = 1;
 constexpr uint32_t kOutputTensor = 2;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::qlstm
 

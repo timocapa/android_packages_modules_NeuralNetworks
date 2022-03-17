@@ -22,7 +22,7 @@
 #include "IndexedShapeWrapper.h"
 #include "LogicalAndOr.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 
 namespace android {
 namespace nn {
@@ -79,10 +79,8 @@ bool executeOr(IOperationExecutionContext* context) {
 
 }  // namespace logical
 
-NN_REGISTER_OPERATION(LOGICAL_AND, "LOGICAL_AND", logical::validate, logical::prepare,
-                      logical::executeAnd);
-NN_REGISTER_OPERATION(LOGICAL_OR, "LOGICAL_OR", logical::validate, logical::prepare,
-                      logical::executeOr);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(LOGICAL_AND, logical::prepare, logical::executeAnd);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(LOGICAL_OR, logical::prepare, logical::executeOr);
 
 }  // namespace nn
 }  // namespace android

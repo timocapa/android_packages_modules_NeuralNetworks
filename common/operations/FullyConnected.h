@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_FULLY_CONNECTED_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_FULLY_CONNECTED_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::fully_connected {
 
@@ -34,8 +34,6 @@ constexpr uint32_t kOutputTensor = 0;
 
 bool validateShapes(const Shape& input, const Shape& weights, const Shape& bias,
                     Shape* output = nullptr);
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::fully_connected
 

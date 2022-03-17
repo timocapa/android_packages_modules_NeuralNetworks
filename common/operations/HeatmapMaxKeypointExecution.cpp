@@ -23,7 +23,7 @@
 
 #include "HeatmapMaxKeypoint.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
@@ -325,9 +325,8 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace heatmap_max_keypoint
 
-NN_REGISTER_OPERATION(HEATMAP_MAX_KEYPOINT, heatmap_max_keypoint::kOperationName,
-                      heatmap_max_keypoint::validate, heatmap_max_keypoint::prepare,
-                      heatmap_max_keypoint::execute);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(HEATMAP_MAX_KEYPOINT, heatmap_max_keypoint::prepare,
+                                         heatmap_max_keypoint::execute);
 
 }  // namespace nn
 }  // namespace android

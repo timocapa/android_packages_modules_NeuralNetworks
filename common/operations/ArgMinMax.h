@@ -17,11 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_ARG_MINMAX_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_ARG_MINMAX_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::arg_min_max {
 
-Result<Version> validate(const IOperationValidationContext* context);
+// TODO: Add input/output labels.
 
 }  // namespace android::nn::arg_min_max
 

@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BROADCAST_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BROADCAST_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::broadcast {
 
@@ -28,8 +28,6 @@ constexpr uint32_t kActivationScalar = 2;
 
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
-
-Result<Version> validate(OperationType opType, const IOperationValidationContext* context);
 
 }  // namespace android::nn::broadcast
 

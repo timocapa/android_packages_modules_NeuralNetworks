@@ -22,7 +22,7 @@
 
 #include "LogSoftmax.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "Tracing.h"
 
 namespace android {
@@ -86,8 +86,7 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace log_softmax
 
-NN_REGISTER_OPERATION(LOG_SOFTMAX, log_softmax::kOperationName, log_softmax::validate,
-                      log_softmax::prepare, log_softmax::execute);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(LOG_SOFTMAX, log_softmax::prepare, log_softmax::execute);
 
 }  // namespace nn
 }  // namespace android

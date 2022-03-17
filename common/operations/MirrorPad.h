@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_MIRROR_PAD_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_MIRROR_PAD_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::mirror_pad_op {
 
@@ -35,8 +35,6 @@ constexpr uint32_t kOutputTensor = 0;
 
 constexpr int kModeReflect = 0;
 constexpr int kModeSymmetric = 1;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::mirror_pad_op
 

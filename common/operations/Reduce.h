@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_REDUCE_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_REDUCE_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::reduce {
 
@@ -33,10 +33,6 @@ constexpr uint32_t kOutputTensor = 0;
 // https://en.wikipedia.org/wiki/Half-precision_floating-point_format#IEEE_754_half-precision_binary_floating-point_format:_binary16
 constexpr _Float16 kFloat16Max = 65504;
 constexpr _Float16 kFloat16Lowest = -kFloat16Max;
-
-Result<Version> validateProdSum(const IOperationValidationContext* context);
-Result<Version> validateMaxMin(const IOperationValidationContext* context);
-Result<Version> validateLogical(const IOperationValidationContext* context);
 
 }  // namespace android::nn::reduce
 

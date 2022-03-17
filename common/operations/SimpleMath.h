@@ -17,11 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_SIMPLE_MATH_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_SIMPLE_MATH_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::mean {
 
-Result<Version> validate(const IOperationValidationContext* context);
+// TODO: Add input/output labels.
 
 }  // namespace android::nn::mean
 

@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_ACTIVATION_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_ACTIVATION_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::activation {
 
@@ -26,10 +26,6 @@ constexpr uint32_t kInputTensor = 0;
 
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
-
-Result<Version> validate(OperationType opType, const IOperationValidationContext* context);
-
-Result<Version> validateHardSwish(const IOperationValidationContext* context);
 
 }  // namespace android::nn::activation
 

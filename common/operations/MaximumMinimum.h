@@ -17,13 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_MAXIMUM_MINIMUM_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_MAXIMUM_MINIMUM_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android {
 namespace nn {
 namespace maximum_minimum {
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 bool prepare(const Shape& in1, const Shape& in2, Shape* output);
 

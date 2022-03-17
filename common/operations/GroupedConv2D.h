@@ -17,11 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_GROUPED_CONV_2D_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_GROUPED_CONV_2D_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::grouped_conv2d {
 
-Result<Version> validate(const IOperationValidationContext* context);
+// TODO: Add input/output labels.
 
 }  // namespace android::nn::grouped_conv2d
 

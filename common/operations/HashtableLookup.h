@@ -19,16 +19,11 @@
 
 #include <vector>
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
-namespace hashtable_lookup {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace hashtable_lookup
 
 struct RunTimeOperandInfo;
 
