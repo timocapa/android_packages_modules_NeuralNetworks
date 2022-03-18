@@ -17,13 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_EXPAND_DIMS_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_EXPAND_DIMS_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android {
 namespace nn {
 namespace expand_dims {
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 bool prepare(const Shape& input, int32_t axis, Shape* output);
 

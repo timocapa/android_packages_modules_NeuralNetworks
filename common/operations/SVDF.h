@@ -22,16 +22,11 @@
 #include <vector>
 
 #include "ActivationFunctor.h"
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
-namespace svdf {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace svdf
 
 struct SVDFParams {
     int rank_;

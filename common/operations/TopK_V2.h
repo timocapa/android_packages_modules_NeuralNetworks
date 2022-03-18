@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TOPK_V2_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TOPK_V2_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::topk_v2 {
 
@@ -28,8 +28,6 @@ constexpr uint32_t kTopKScalar = 1;
 constexpr uint32_t kNumOutputs = 2;
 constexpr uint32_t kOutputValuesTensor = 0;
 constexpr uint32_t kOutputIndicesTensor = 1;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::topk_v2
 

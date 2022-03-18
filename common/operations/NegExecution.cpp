@@ -20,7 +20,7 @@
 
 #include "Neg.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "Tracing.h"
 
 namespace android {
@@ -67,7 +67,7 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace neg
 
-NN_REGISTER_OPERATION(NEG, neg::kOperationName, neg::validate, neg::prepare, neg::execute);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(NEG, neg::prepare, neg::execute);
 
 }  // namespace nn
 }  // namespace android

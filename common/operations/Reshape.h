@@ -17,20 +17,11 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_RESHAPE_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_RESHAPE_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::reshape {
 
-Result<Version> validateDepthToSpace(const IOperationValidationContext* context);
-Result<Version> validateSpaceToDepth(const IOperationValidationContext* context);
-
-Result<Version> validatePad(const IOperationValidationContext* context);
-Result<Version> validatePadV2(const IOperationValidationContext* context);
-
-Result<Version> validateBatchToSpaceND(const IOperationValidationContext* context);
-Result<Version> validateSpaceToBatchND(const IOperationValidationContext* context);
-
-Result<Version> validateReshape(const IOperationValidationContext* context);
+// TODO: Add input/output labels.
 
 }  // namespace android::nn::reshape
 

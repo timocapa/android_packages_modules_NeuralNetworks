@@ -19,7 +19,7 @@
 #include "Dequantize.h"
 #include "IndexedShapeWrapper.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 
 namespace android {
 namespace nn {
@@ -126,8 +126,8 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace dequantize
 
-NN_REGISTER_OPERATION(DEQUANTIZE, "DEQUANTIZE", dequantize::validate, dequantize::prepare,
-                      dequantize::execute, .allowZeroSizedInput = true);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(DEQUANTIZE, dequantize::prepare, dequantize::execute,
+                                         .allowZeroSizedInput = true);
 
 }  // namespace nn
 }  // namespace android

@@ -18,7 +18,7 @@
 
 #include "IndexedShapeWrapper.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "Select.h"
 
 namespace android {
@@ -99,8 +99,7 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace select_op
 
-NN_REGISTER_OPERATION(SELECT, "SELECT", select_op::validate, select_op::prepare,
-                      select_op::execute);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(SELECT, select_op::prepare, select_op::execute);
 
 }  // namespace nn
 }  // namespace android

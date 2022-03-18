@@ -23,15 +23,10 @@
 
 #include "ActivationFunctor.h"
 #include "LSTM.h"
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android {
 namespace nn {
-namespace bidirectional_sequence_lstm {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace bidirectional_sequence_lstm
 
 struct RunTimeOperandInfo;
 

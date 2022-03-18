@@ -21,7 +21,7 @@
 
 #include "IndexedShapeWrapper.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "PRelu.h"
 #include "Tracing.h"
 
@@ -152,8 +152,7 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace prelu
 
-NN_REGISTER_OPERATION(PRELU, prelu::kOperationName, prelu::validate, prelu::prepare,
-                      prelu::execute);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(PRELU, prelu::prepare, prelu::execute);
 
 }  // namespace nn
 }  // namespace android

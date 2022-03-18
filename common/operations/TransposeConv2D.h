@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TRANSPOSE_CONV_2D_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_TRANSPOSE_CONV_2D_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::transpose_conv_2d {
 
@@ -31,8 +31,6 @@ constexpr uint32_t kNumInputs1 = 9;
 constexpr uint32_t kNumInputs2 = 11;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::transpose_conv_2d
 

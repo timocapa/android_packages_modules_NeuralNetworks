@@ -20,7 +20,7 @@
 
 #include "IndexedShapeWrapper.h"
 #include "OperationResolver.h"
-#include "OperationsUtils.h"
+#include "OperationsExecutionUtils.h"
 #include "UnidirectionalSequenceLSTM.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
@@ -412,9 +412,10 @@ bool execute(IOperationExecutionContext* context) {
 
 }  // namespace unidirectional_sequence_lstm
 
-NN_REGISTER_OPERATION(UNIDIRECTIONAL_SEQUENCE_LSTM, "UNIDIRECTIONAL_SEQUENCE_LSTM",
-                      unidirectional_sequence_lstm::validate, unidirectional_sequence_lstm::prepare,
-                      unidirectional_sequence_lstm::execute, .allowOmittedOperand = true);
+NN_REGISTER_OPERATION_DEFAULT_VALIDATION(UNIDIRECTIONAL_SEQUENCE_LSTM,
+                                         unidirectional_sequence_lstm::prepare,
+                                         unidirectional_sequence_lstm::execute,
+                                         .allowOmittedOperand = true);
 
 }  // namespace nn
 }  // namespace android

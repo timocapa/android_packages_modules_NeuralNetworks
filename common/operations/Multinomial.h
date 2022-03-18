@@ -21,16 +21,11 @@
 #include <cmath>
 #include <vector>
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
-namespace multinomial {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace multinomial
 
 struct RunTimeOperandInfo;
 struct Shape;
