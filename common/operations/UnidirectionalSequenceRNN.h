@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UNIDIRECTIONAL_SEQUENCE_RNN_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UNIDIRECTIONAL_SEQUENCE_RNN_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::unidirectional_sequence_rnn {
 
@@ -34,8 +34,6 @@ constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kNumOutputsWithState = 2;
 constexpr uint32_t kOutputTensor = 0;
 constexpr uint32_t kStateOutputTensor = 1;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::unidirectional_sequence_rnn
 

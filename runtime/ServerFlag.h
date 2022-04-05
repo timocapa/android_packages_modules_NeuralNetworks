@@ -36,7 +36,7 @@ constexpr int64_t kDefaultFeatureLevelNum = 5;
 // When this value is updated, update kMinFeatureLevelCode in runtime/test/TestUpdatability.cpp with
 // the corresponding ANEURALNETWORKS_FEATURE_LEVEL_* version.
 constexpr int64_t kMinFeatureLevelNum = 5;
-constexpr int64_t kMaxFeatureLevelNum = 7;
+constexpr int64_t kMaxFeatureLevelNum = 8;
 constexpr bool kDefaultTelemetryEnableValue = false;
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
@@ -53,9 +53,10 @@ bool getServerTelemetryEnableFlag();
 #endif  // NN_EXPERIMENTAL_FEATURE
 
 // Testing-only.
-int64_t getServerFeatureLevelFlag(
-        std::function<std::string(const std::string&, const std::string&, const std::string&)>
-                serverFunc);
+using GetServerConfigurableFlagFunc =
+        std::function<std::string(const std::string&, const std::string&, const std::string&)>;
+int64_t getServerFeatureLevelFlag(GetServerConfigurableFlagFunc serverFunc);
+bool getServerTelemetryEnableFlag(GetServerConfigurableFlagFunc serverFunc);
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 // Get the runtime version corresponding to the server feature flag value.

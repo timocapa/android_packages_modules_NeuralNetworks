@@ -19,16 +19,11 @@
 
 #include <vector>
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
-namespace lsh_projection {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace lsh_projection
 
 enum LSHProjectionType {
     LSHProjectionType_UNKNOWN = 0,

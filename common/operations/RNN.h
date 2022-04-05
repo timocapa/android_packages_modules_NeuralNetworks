@@ -20,14 +20,14 @@
 #include <vector>
 
 #include "ActivationFunctor.h"
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 #include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
 namespace rnn {
 
-Result<Version> validate(const IOperationValidationContext* context);
+// TODO: Add input/output labels.
 
 }  // namespace rnn
 

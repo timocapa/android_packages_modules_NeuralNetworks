@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_RANK_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_RANK_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::rank_op {
 
@@ -26,8 +26,6 @@ constexpr uint32_t kInputTensor = 0;
 
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputScalar = 0;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::rank_op
 

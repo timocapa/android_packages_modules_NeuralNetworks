@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UNIDIRECTIONAL_SEQUENCE_LSTM_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_UNIDIRECTIONAL_SEQUENCE_LSTM_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::unidirectional_sequence_lstm {
 
@@ -78,8 +78,6 @@ constexpr uint32_t kNumOutputsWithState = 3;
 constexpr uint32_t kOutputTensor = 0;
 constexpr uint32_t kOutputStateOutTensor = 1;
 constexpr uint32_t kCellStateOutTensor = 2;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::unidirectional_sequence_lstm
 

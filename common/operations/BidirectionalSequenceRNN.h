@@ -17,7 +17,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_RNN_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_COMMON_OPERATIONS_BIDIRECTIONAL_SEQUENCE_RNN_H
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android::nn::bidirectional_sequence_rnn {
 
@@ -51,8 +51,6 @@ constexpr uint32_t kFwOutputTensor = 0;
 constexpr uint32_t kBwOutputTensor = 1;  // Only if mergeOutputs parameter is false
 constexpr uint32_t kFwOutputHiddenStateTensor = 2;
 constexpr uint32_t kBwOutputHiddenStateTensor = 3;
-
-Result<Version> validate(const IOperationValidationContext* context);
 
 }  // namespace android::nn::bidirectional_sequence_rnn
 

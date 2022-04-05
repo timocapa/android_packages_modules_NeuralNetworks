@@ -19,15 +19,10 @@
 
 #include <vector>
 
-#include "OperationsUtils.h"
+#include "OperationsValidationUtils.h"
 
 namespace android {
 namespace nn {
-namespace quantized_16bit_lstm {
-
-Result<Version> validate(const IOperationValidationContext* context);
-
-}  // namespace quantized_16bit_lstm
 
 struct RunTimeOperandInfo;
 
