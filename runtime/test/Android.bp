@@ -210,7 +210,7 @@ cc_test {
     target: {
         android: {
             test_config: "AndroidTest_NeuralNetworksTest_static.xml",
-            srcs: ["TestWestworldTelemetry.cpp"],
+            srcs: ["TestStatsdTelemetry.cpp"],
         },
         host: {
             cflags: [
