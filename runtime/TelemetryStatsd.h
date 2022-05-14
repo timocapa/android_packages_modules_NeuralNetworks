@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_WESTWORLD_H
-#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_WESTWORLD_H
+#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_STATSD_H
+#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_STATSD_H
 
 #include <android-base/thread_annotations.h>
 
@@ -94,7 +94,7 @@ struct AtomValue {
 
 void combineAtomValues(AtomValue* acculatedValue, const AtomValue& value);
 
-// Atom type to be sent to Westworld Telemetry
+// Atom type to be sent to Statsd Telemetry
 using Atom = std::pair<AtomKey, AtomValue>;
 
 // Helper class to locally aggregate and retrieve telemetry atoms.
@@ -118,8 +118,8 @@ class AtomAggregator {
 using LoggerFn = std::function<void(Atom&&)>;
 
 // AsyncLogger minimizes the call to `write`, so that the calling thread which handles the
-// compilation or execution is not slowed down by writing to WestWorld. Instead, AsyncLogger
-// contains a dedicated thread that will handle logging to WestWorld in the background.
+// compilation or execution is not slowed down by writing to statsd. Instead, AsyncLogger
+// contains a dedicated thread that will handle logging to statsd in the background.
 // This class is thread-safe.
 class AsyncLogger {
    public:
@@ -155,10 +155,10 @@ class AsyncLogger {
 Atom createAtomFrom(const DiagnosticCompilationInfo* info);
 Atom createAtomFrom(const DiagnosticExecutionInfo* info);
 
-// Log an Atom to WestWorld from a diagnostic info object.
-void logCompilationToWestworld(const DiagnosticCompilationInfo* info);
-void logExecutionToWestworld(const DiagnosticExecutionInfo* info);
+// Log an Atom to statsd from a diagnostic info object.
+void logCompilationToStatsd(const DiagnosticCompilationInfo* info);
+void logExecutionToStatsd(const DiagnosticExecutionInfo* info);
 
 }  // namespace android::nn::telemetry
 
-#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_WESTWORLD_H
+#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_STATSD_H

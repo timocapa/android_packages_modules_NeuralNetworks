@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "TelemetryWestworld"
+#define LOG_TAG "TelemetryStatsd"
 
-#include "TelemetryWestworld.h"
+#include "TelemetryStatsd.h"
 
 #include <android-base/logging.h>
 #include <android-base/no_destructor.h>
@@ -39,10 +39,10 @@ namespace android::nn::telemetry {
 namespace {
 
 constexpr uint64_t kNoTimeReportedRuntime = std::numeric_limits<uint64_t>::max();
-constexpr int64_t kNoTimeReportedWestworld = std::numeric_limits<int64_t>::max();
+constexpr int64_t kNoTimeReportedStatsd = std::numeric_limits<int64_t>::max();
 constexpr size_t kInitialChannelSize = 100;
 
-// WestWorld specifies that "Atom logging frequency should not exceed once per 10 milliseconds (i.e.
+// Statsd specifies that "Atom logging frequency should not exceed once per 10 milliseconds (i.e.
 // consecutive atom calls should be at least 10 milliseconds apart)." A quiet period of 100ms is
 // chosen here to reduce the chance that the NNAPI logs too frequently, even from separate
 // applications.
@@ -55,16 +55,16 @@ int32_t getUid() {
 
 constexpr int64_t nanosToMillis(uint64_t time) {
     constexpr uint64_t kNanosPerMilli = 1'000'000;
-    return time == kNoTimeReportedRuntime ? kNoTimeReportedWestworld : time / kNanosPerMilli;
+    return time == kNoTimeReportedRuntime ? kNoTimeReportedStatsd : time / kNanosPerMilli;
 }
 
 constexpr int64_t nanosToMicros(uint64_t time) {
     constexpr uint64_t kNanosPerMicro = 1'000;
-    return time == kNoTimeReportedRuntime ? kNoTimeReportedWestworld : time / kNanosPerMicro;
+    return time == kNoTimeReportedRuntime ? kNoTimeReportedStatsd : time / kNanosPerMicro;
 }
 
 AtomValue::AccumulatedTiming accumulatedTimingFrom(int64_t timing) {
-    if (timing == kNoTimeReportedWestworld) {
+    if (timing == kNoTimeReportedStatsd) {
         return {};
     }
     return {
@@ -89,7 +89,7 @@ void combineAccumulatedTiming(AtomValue::AccumulatedTiming* accumulatedTime,
 }
 
 stats::BytesField makeBytesField(const ModelArchHash& modelArchHash) {
-    return stats::BytesField(reinterpret_cast<const char*>(modelArchHash.begin()),
+    return stats::BytesField(reinterpret_cast<const char*>(modelArchHash.data()),
                              modelArchHash.size());
 }
 
@@ -182,9 +182,22 @@ int32_t convertResultCode(int32_t resultCode) {
                    : ANEURALNETWORKS_OP_FAILED;
 }
 
-void logAtomToWestworld(Atom&& atom) {
-    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logAtomToWestworld");
+int64_t compressTo64(const ModelArchHash& modelArchHash) {
+    int64_t hash = 0;
+    const char* data = reinterpret_cast<const char*>(modelArchHash.data());
+    for (size_t i = 0; i + sizeof(int64_t) <= sizeof(ModelArchHash); i += sizeof(int64_t)) {
+        int64_t tmp = 0;
+        std::memcpy(&tmp, data + i, sizeof(int64_t));
+        hash ^= tmp;
+    }
+    return hash;
+}
+
+void logAtomToStatsd(Atom&& atom) {
+    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logAtomToStatsd");
     const auto& [key, value] = atom;
+
+    const auto modelArchHash64 = compressTo64(key.modelArchHash);
 
     if (!key.isExecution) {
         if (key.errorCode == ANEURALNETWORKS_NO_ERROR) {
@@ -196,14 +209,14 @@ void logAtomToWestworld(Atom&& atom) {
                     key.hasControlFlow, key.hasDynamicTemporaries,
                     value.compilationTimeMillis.sumTime, value.compilationTimeMillis.minTime,
                     value.compilationTimeMillis.maxTime, value.compilationTimeMillis.sumSquaredTime,
-                    value.compilationTimeMillis.count, value.count);
+                    value.compilationTimeMillis.count, value.count, modelArchHash64);
         } else {
             stats::stats_write(
                     stats::NEURALNETWORKS_COMPILATION_FAILED, getUid(), getSessionId(),
                     kNnapiApexVersion, makeBytesField(key.modelArchHash), key.deviceId.c_str(),
                     convertDataClass(key.inputDataClass), convertDataClass(key.outputDataClass),
                     convertResultCode(key.errorCode), key.introspectionEnabled, key.cacheEnabled,
-                    key.hasControlFlow, key.hasDynamicTemporaries, value.count);
+                    key.hasControlFlow, key.hasDynamicTemporaries, value.count, modelArchHash64);
         }
     } else {
         if (key.errorCode == ANEURALNETWORKS_NO_ERROR) {
@@ -221,7 +234,7 @@ void logAtomToWestworld(Atom&& atom) {
                     value.durationHardwareMicros.sumTime, value.durationHardwareMicros.minTime,
                     value.durationHardwareMicros.maxTime,
                     value.durationHardwareMicros.sumSquaredTime, value.durationHardwareMicros.count,
-                    value.count);
+                    value.count, modelArchHash64);
         } else {
             stats::stats_write(
                     stats::NEURALNETWORKS_EXECUTION_FAILED, getUid(), getSessionId(),
@@ -229,13 +242,13 @@ void logAtomToWestworld(Atom&& atom) {
                     convertExecutionMode(key.executionMode), convertDataClass(key.inputDataClass),
                     convertDataClass(key.outputDataClass), convertResultCode(key.errorCode),
                     key.introspectionEnabled, key.cacheEnabled, key.hasControlFlow,
-                    key.hasDynamicTemporaries, value.count);
+                    key.hasDynamicTemporaries, value.count, modelArchHash64);
         }
     }
 }
 
-AsyncLogger& getWestworldLogger() {
-    static base::NoDestructor<AsyncLogger> logger(logAtomToWestworld, kMinimumLoggingQuietPeriod);
+AsyncLogger& getStatsdLogger() {
+    static base::NoDestructor<AsyncLogger> logger(logAtomToStatsd, kMinimumLoggingQuietPeriod);
     return *logger;
 }
 
@@ -430,14 +443,14 @@ Atom createAtomFrom(const DiagnosticExecutionInfo* info) {
     return atom;
 }
 
-void logCompilationToWestworld(const DiagnosticCompilationInfo* info) {
-    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logCompilationWestworld");
-    getWestworldLogger().write(createAtomFrom(info));
+void logCompilationToStatsd(const DiagnosticCompilationInfo* info) {
+    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logCompilationStatsd");
+    getStatsdLogger().write(createAtomFrom(info));
 }
 
-void logExecutionToWestworld(const DiagnosticExecutionInfo* info) {
-    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logExecutionWestworld");
-    getWestworldLogger().write(createAtomFrom(info));
+void logExecutionToStatsd(const DiagnosticExecutionInfo* info) {
+    NNTRACE_RT(NNTRACE_PHASE_UNSPECIFIED, "logExecutionStatsd");
+    getStatsdLogger().write(createAtomFrom(info));
 }
 
 }  // namespace android::nn::telemetry

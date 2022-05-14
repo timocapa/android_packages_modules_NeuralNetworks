@@ -107,7 +107,7 @@ cc_defaults {
             generated_headers: ["statslog_neuralnetworks.h"],
             export_generated_headers: ["statslog_neuralnetworks.h"],
             srcs: [
-                "TelemetryWestworld.cpp",
+                "TelemetryStatsd.cpp",
             ],
             shared_libs: [
                 "libnativewindow",
