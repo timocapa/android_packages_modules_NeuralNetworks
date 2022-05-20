@@ -30,7 +30,7 @@
 #include "Tracing.h"
 
 #if defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
-#include "TelemetryWestworld.h"
+#include "TelemetryStatsd.h"
 #endif  // defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
 
 namespace android::nn::telemetry {
@@ -176,7 +176,7 @@ void onCompilationFinish(CompilationBuilder* c, int resultCode) {
 
 #if defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
     if (DeviceManager::get()->isPlatformTelemetryEnabled()) {
-        logCompilationToWestworld(&info);
+        logCompilationToStatsd(&info);
     }
 #endif  // defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
 
@@ -233,7 +233,7 @@ void onExecutionFinish(ExecutionBuilder* e, ExecutionMode executionMode, int res
 
 #if defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
     if (DeviceManager::get()->isPlatformTelemetryEnabled()) {
-        logExecutionToWestworld(&info);
+        logExecutionToStatsd(&info);
     }
 #endif  // defined(__ANDROID__) && !defined(NN_COMPATIBILITY_LIBRARY_BUILD)
 

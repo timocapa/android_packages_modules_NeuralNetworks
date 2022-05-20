@@ -21,7 +21,7 @@
 #include <numeric>
 
 #include "Telemetry.h"
-#include "TelemetryWestworld.h"
+#include "TelemetryStatsd.h"
 
 namespace android::nn::telemetry {
 
@@ -98,18 +98,18 @@ AtomValue::AccumulatedTiming accumulatedTimingsFrom(std::initializer_list<int64_
     };
 }
 
-TEST(WestworldTelemetryTest, AtomKeyEquality) {
+TEST(StatsdTelemetryTest, AtomKeyEquality) {
     EXPECT_EQ(kExampleKey, kExampleKey);
 }
 
-TEST(WestworldTelemetryTest, AtomKeyLessThan) {
+TEST(StatsdTelemetryTest, AtomKeyLessThan) {
     const auto key1 = kExampleKey;
     auto key2 = key1;
     key2.errorCode = ANEURALNETWORKS_DEAD_OBJECT;
     EXPECT_LT(key1, key2);
 }
 
-TEST(WestworldTelemetryTest, CombineAtomValues) {
+TEST(StatsdTelemetryTest, CombineAtomValues) {
     AtomValue value1 = {
             .count = 3,
             .compilationTimeMillis = accumulatedTimingsFrom({50, 100, 150}),
@@ -127,7 +127,7 @@ TEST(WestworldTelemetryTest, CombineAtomValues) {
     EXPECT_EQ(value1, valueResult);
 }
 
-TEST(WestworldTelemetryTest, CombineAtomValueWithLeftIdentity) {
+TEST(StatsdTelemetryTest, CombineAtomValueWithLeftIdentity) {
     AtomValue value1 = {};
     const AtomValue value2 = {
             .count = 1,
@@ -139,7 +139,7 @@ TEST(WestworldTelemetryTest, CombineAtomValueWithLeftIdentity) {
     EXPECT_EQ(value1, valueResult);
 }
 
-TEST(WestworldTelemetryTest, CombineAtomValueWithRightIdentity) {
+TEST(StatsdTelemetryTest, CombineAtomValueWithRightIdentity) {
     AtomValue value1 = {
             .count = 3,
             .compilationTimeMillis = accumulatedTimingsFrom({50, 100, 150}),
@@ -151,18 +151,18 @@ TEST(WestworldTelemetryTest, CombineAtomValueWithRightIdentity) {
     EXPECT_EQ(value1, valueResult);
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorStartEmpty) {
+TEST(StatsdTelemetryTest, AtomAggregatorStartEmpty) {
     AtomAggregator aggregator;
     EXPECT_TRUE(aggregator.empty());
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorNotEmptyAfterPush) {
+TEST(StatsdTelemetryTest, AtomAggregatorNotEmptyAfterPush) {
     AtomAggregator aggregator;
     aggregator.push({kExampleKey, {}});
     EXPECT_FALSE(aggregator.empty());
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorEmptyAfterPop) {
+TEST(StatsdTelemetryTest, AtomAggregatorEmptyAfterPop) {
     AtomAggregator aggregator;
     aggregator.push({kExampleKey, {}});
     const auto [k, v] = aggregator.pop();
@@ -170,7 +170,7 @@ TEST(WestworldTelemetryTest, AtomAggregatorEmptyAfterPop) {
     EXPECT_EQ(k, kExampleKey);
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorTwoDifferentKeys) {
+TEST(StatsdTelemetryTest, AtomAggregatorTwoDifferentKeys) {
     const auto key1 = kExampleKey;
     auto key2 = key1;
     key2.executionMode = ExecutionMode::ASYNC;
@@ -188,7 +188,7 @@ TEST(WestworldTelemetryTest, AtomAggregatorTwoDifferentKeys) {
     EXPECT_FALSE(aggregator.empty());
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorTwoSameKeys) {
+TEST(StatsdTelemetryTest, AtomAggregatorTwoSameKeys) {
     const auto key1 = kExampleKey;
     const auto value1 = AtomValue{.count = 2};
     const auto value2 = AtomValue{.count = 3};
@@ -204,7 +204,7 @@ TEST(WestworldTelemetryTest, AtomAggregatorTwoSameKeys) {
     EXPECT_TRUE(aggregator.empty());
 }
 
-TEST(WestworldTelemetryTest, AtomAggregatorPush) {
+TEST(StatsdTelemetryTest, AtomAggregatorPush) {
     const AtomKey key1 = kExampleKey;
     AtomKey key2 = key1;
     key2.executionMode = ExecutionMode::ASYNC;
@@ -227,7 +227,7 @@ TEST(WestworldTelemetryTest, AtomAggregatorPush) {
     EXPECT_TRUE(aggregator.empty());
 }
 
-TEST(WestworldTelemetryTest, AsyncLoggerTeardownWhileWaitingForData) {
+TEST(StatsdTelemetryTest, AsyncLoggerTeardownWhileWaitingForData) {
     constexpr auto fn = [](Atom&& /*atom*/) {};
     const auto start = Clock::now();
     { AsyncLogger logger(fn, kLongTime); }
@@ -235,7 +235,7 @@ TEST(WestworldTelemetryTest, AsyncLoggerTeardownWhileWaitingForData) {
     EXPECT_LT(elapsed, kLongTime);
 }
 
-TEST(WestworldTelemetryTest, AsyncLoggerTeardownDuringSleep) {
+TEST(StatsdTelemetryTest, AsyncLoggerTeardownDuringSleep) {
     Signal loggingOccurred;
     auto fn = [&loggingOccurred](Atom&& /*atom*/) mutable { loggingOccurred.signal(); };
 
@@ -250,7 +250,7 @@ TEST(WestworldTelemetryTest, AsyncLoggerTeardownDuringSleep) {
     EXPECT_LT(elapsed, kLongTime);
 }
 
-TEST(WestworldTelemetryTest, AsyncLoggerVerifyQuietPeriod) {
+TEST(StatsdTelemetryTest, AsyncLoggerVerifyQuietPeriod) {
     std::atomic<uint32_t> count = 0;
     Signal loggingOccurred;
     const auto fn = [&count, &loggingOccurred](Atom&& /*atom*/) {
@@ -276,7 +276,7 @@ TEST(WestworldTelemetryTest, AsyncLoggerVerifyQuietPeriod) {
     EXPECT_EQ(count, 1u);
 }
 
-TEST(WestworldTelemetryTest, AsyncLoggerVerifyAllDataSent) {
+TEST(StatsdTelemetryTest, AsyncLoggerVerifyAllDataSent) {
     const uint32_t targetCount = ANEURALNETWORKS_DEAD_OBJECT - ANEURALNETWORKS_NO_ERROR + 1;
     std::atomic<uint32_t> count = 0;
     Signal allDataSent;
@@ -301,7 +301,7 @@ TEST(WestworldTelemetryTest, AsyncLoggerVerifyAllDataSent) {
     EXPECT_EQ(count, targetCount);
 }
 
-TEST(WestworldTelemetryTest, createAtomFromCompilationInfoWhenNoError) {
+TEST(StatsdTelemetryTest, createAtomFromCompilationInfoWhenNoError) {
     const DiagnosticCompilationInfo info{
             .modelArchHash = kExampleModelArchHash.data(),
             .deviceId = kExampleDeviceId,
@@ -341,7 +341,7 @@ TEST(WestworldTelemetryTest, createAtomFromCompilationInfoWhenNoError) {
     EXPECT_EQ(value.durationHardwareMicros, kNoAggregateTiming);
 }
 
-TEST(WestworldTelemetryTest, createAtomFromCompilationInfoWhenError) {
+TEST(StatsdTelemetryTest, createAtomFromCompilationInfoWhenError) {
     const DiagnosticCompilationInfo info{
             .modelArchHash = kExampleModelArchHash.data(),
             .deviceId = kExampleDeviceId,
@@ -378,7 +378,7 @@ TEST(WestworldTelemetryTest, createAtomFromCompilationInfoWhenError) {
     EXPECT_EQ(value.durationHardwareMicros, kNoAggregateTiming);
 }
 
-TEST(WestworldTelemetryTest, createAtomFromExecutionInfoWhenNoError) {
+TEST(StatsdTelemetryTest, createAtomFromExecutionInfoWhenNoError) {
     const DiagnosticExecutionInfo info{
             .modelArchHash = kExampleModelArchHash.data(),
             .deviceId = kExampleDeviceId,
@@ -426,7 +426,7 @@ TEST(WestworldTelemetryTest, createAtomFromExecutionInfoWhenNoError) {
     EXPECT_EQ(value.durationHardwareMicros, durationHardwareMicros);
 }
 
-TEST(WestworldTelemetryTest, createAtomFromExecutionInfoWhenError) {
+TEST(StatsdTelemetryTest, createAtomFromExecutionInfoWhenError) {
     const DiagnosticExecutionInfo info{
             .modelArchHash = kExampleModelArchHash.data(),
             .deviceId = kExampleDeviceId,
