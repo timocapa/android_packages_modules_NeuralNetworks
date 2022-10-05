@@ -128,6 +128,8 @@ cc_defaults {
     export_include_dirs: [
         "include",
     ],
+    // Disable sdclang
+    sdclang: false,
     srcs: [
         "ActivationFunctor.cpp",
         "BufferTracker.cpp",
